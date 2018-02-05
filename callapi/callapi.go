@@ -10,11 +10,16 @@ import (
 type Call struct {
 	hc  HttpClient
 	clo clockwork.Clock
+
 }
 
 type HCState struct {
 	BackoffCount int
 	State        string
+}
+
+type AsyncCall interface {
+	Post(url string, header map[string]string, body []byte) AsyncRestAPIHandler
 }
 
 type AsyncRestAPIHandler interface {
@@ -25,6 +30,12 @@ type AsyncRestAPIHandler interface {
 	GetBody() []byte
 	GetStatusCode() int
 	GetHeader(string) string
+}
+
+func (c *Call) Post(url string, header map[string]string, body []byte) AsyncRestAPIHandler {
+	handler := NewHandler(c.hc, c.clo)
+	handler.Post(url, header, body)
+	return handler
 }
 
 func NewCall(hc HttpClient, clo clockwork.Clock) *Call {
@@ -129,12 +140,12 @@ func (h *Handler) SyncPost(url string, header map[string]string, body []byte) {
 			}
 			h.lock.Lock()
 			h.body, h.header, h.statuscode = res.body, res.header, res.code
-			if res.code == 200 {
+			if !Is5xx(res.code) && res.code != 429 { // success or fail
 				h.laststate = HCState{BackoffCount: c, State: S_STOPPED}
 				h.donechan <- true
 				h.lock.Unlock()
-				return
 			}
+			// only retrying on 500 or 429
 			h.laststate = HCState{BackoffCount: c, State: S_BACKINGOFF}
 			h.lock.Unlock()
 			select {
@@ -149,7 +160,7 @@ func (h *Handler) SyncPost(url string, header map[string]string, body []byte) {
 				h.canceldone <- true
 				return
 			case <-h.clo.After(bf.NextBackOff()):
-			}
+ 			}
 		case <-h.cancelchan:
 			if cancelled {
 				return
@@ -203,4 +214,16 @@ func (h *Handler) GetHeader(header string) string {
 		return ""
 	}
 	return hea[0]
+}
+
+func Is2xx(code int) bool {
+	return 199 < code && code < 300
+}
+
+func Is4xx(code int) bool {
+	return 399 < code && code < 500
+}
+
+func Is5xx(code int) bool {
+	return 499 < code && code < 600
 }
