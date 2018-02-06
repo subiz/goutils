@@ -39,6 +39,10 @@ func (c *Call) Post(url string, header map[string]string, body []byte) AsyncRest
 	return handler
 }
 
+func (c *Call) NewHandler() *Handler {
+	return NewHandler(c.hc, c.clo)
+}
+
 func NewCall(hc HttpClient, clo clockwork.Clock) *Call {
 	if hc == nil {
 		hc = NewFHC()
