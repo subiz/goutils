@@ -20,6 +20,7 @@ type HCState struct {
 
 type AsyncCall interface {
 	Post(url string, header map[string]string, body []byte) AsyncRestAPIHandler
+	Send(method, url string, header map[string]string, body []byte) AsyncRestAPIHandler
 }
 
 type AsyncRestAPIHandler interface {
@@ -100,9 +101,9 @@ type resp struct {
 	err    error
 }
 
-func (h *Handler) asyncPostHttp(url string, header map[string]string, body []byte, c chan resp) {
+func (h *Handler) asyncSendHttp(method, url string, header map[string]string, body []byte, c chan resp) {
 	res := resp{}
-	res.header, res.body, res.code, res.err = h.hc.Send("POST", url, header, body)
+	res.header, res.body, res.code, res.err = h.hc.Send(method, url, header, body)
 	c <- res
 }
 
@@ -113,67 +114,19 @@ func (h *Handler) Post(url string, header map[string]string, body []byte) {
 		panic("handler is in middle of something (not stopped), got " + h.laststate.State)
 	}
 	h.laststate = HCState{BackoffCount: 0, State: S_CALLING}
-	go h.SyncPost(url, header, body)
+	go h.SyncSend("POST", url, header, body)
 	h.lock.Unlock()
 }
 
-func (h *Handler) SyncPost(url string, header map[string]string, body []byte) {
-	bf := &backoff.ExponentialBackOff{
-		Multiplier:          2,
-		RandomizationFactor: 0.1,
-		InitialInterval:     1 * time.Second,
-		Clock:               h.clo,
+func (h *Handler) Send(method, url string, header map[string]string, body []byte) {
+	h.lock.Lock()
+	if h.laststate.State != S_STOPPED {
+		h.lock.Unlock()
+		panic("handler is in middle of something (not stopped), got " + h.laststate.State)
 	}
-	bf.Reset()
-	cancelled, c := false, 15
-	callchan := make(chan resp)
-
-	for c > 0 {
-		if cancelled {
-			return
-		}
-		go h.asyncPostHttp(url, header, body, callchan)
-		select {
-		case res := <-callchan:
-			if cancelled {
-				return
-			}
-			h.lock.Lock()
-			h.body, h.header, h.statuscode = res.body, res.header, res.code
-			if !Is5xx(res.code) && res.code != 429 { // success or fail
-				h.laststate = HCState{BackoffCount: c, State: S_STOPPED}
-				h.donechan <- true
-				h.lock.Unlock()
-			}
-			// only retrying on 500 or 429
-			h.laststate = HCState{BackoffCount: c, State: S_BACKINGOFF}
-			h.lock.Unlock()
-			select {
-			case <-h.cancelchan:
-				if cancelled {
-					return
-				}
-				cancelled = true
-				h.lock.Lock()
-				h.laststate = HCState{BackoffCount: c, State: S_CANCELLED}
-				h.lock.Unlock()
-				h.canceldone <- true
-				return
-			case <-h.clo.After(bf.NextBackOff()):
- 			}
-		case <-h.cancelchan:
-			if cancelled {
-				return
-			}
-			cancelled = true
-			h.lock.Lock()
-			h.laststate = HCState{BackoffCount: c, State: S_CANCELLED}
-			h.lock.Unlock()
-			h.canceldone <- true
-			return
-		}
-		c--
-	}
+	h.laststate = HCState{BackoffCount: 0, State: S_CALLING}
+	go h.SyncSend(method, url, header, body)
+	h.lock.Unlock()
 }
 
 func (h *Handler) Cancel() {
@@ -226,4 +179,63 @@ func Is4xx(code int) bool {
 
 func Is5xx(code int) bool {
 	return 499 < code && code < 600
+}
+
+func (h *Handler) SyncSend(method, url string, header map[string]string, body []byte) {
+	bf := &backoff.ExponentialBackOff{
+		Multiplier:          2,
+		RandomizationFactor: 0.1,
+		InitialInterval:     1 * time.Second,
+		Clock:               h.clo,
+	}
+	bf.Reset()
+	cancelled, c := false, 15
+	callchan := make(chan resp)
+
+	for c > 0 {
+		if cancelled {
+			return
+		}
+		go h.asyncSendHttp(method, url, header, body, callchan)
+		select {
+		case res := <-callchan:
+			if cancelled {
+				return
+			}
+			h.lock.Lock()
+			h.body, h.header, h.statuscode = res.body, res.header, res.code
+			if !Is5xx(res.code) && res.code != 429 { // success or fail
+				h.laststate = HCState{BackoffCount: c, State: S_STOPPED}
+				h.donechan <- true
+				h.lock.Unlock()
+			}
+			// only retrying on 500 or 429
+			h.laststate = HCState{BackoffCount: c, State: S_BACKINGOFF}
+			h.lock.Unlock()
+			select {
+			case <-h.cancelchan:
+				if cancelled {
+					return
+				}
+				cancelled = true
+				h.lock.Lock()
+				h.laststate = HCState{BackoffCount: c, State: S_CANCELLED}
+				h.lock.Unlock()
+				h.canceldone <- true
+				return
+			case <-h.clo.After(bf.NextBackOff()):
+ 			}
+		case <-h.cancelchan:
+			if cancelled {
+				return
+			}
+			cancelled = true
+			h.lock.Lock()
+			h.laststate = HCState{BackoffCount: c, State: S_CANCELLED}
+			h.lock.Unlock()
+			h.canceldone <- true
+			return
+		}
+		c--
+	}
 }
