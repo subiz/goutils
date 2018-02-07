@@ -212,6 +212,7 @@ func (h *Handler) SyncSend(method, url string, header map[string]string, body []
 				h.laststate = HCState{BackoffCount: c, State: S_STOPPED}
 				h.donechan <- true
 				h.lock.Unlock()
+				return
 			}
 			// only retrying on 500 or 429
 			h.laststate = HCState{BackoffCount: c, State: S_BACKINGOFF}
