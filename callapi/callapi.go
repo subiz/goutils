@@ -207,7 +207,17 @@ func (h *Handler) SyncSend(method, url string, header map[string]string, body []
 				return
 			}
 			h.lock.Lock()
+
 			h.body, h.header, h.statuscode = res.body, res.header, res.code
+			if res.err != nil {
+				h.statuscode = -2
+				h.body = []byte(res.err.Error())
+				h.laststate = HCState{BackoffCount: c, State: S_STOPPED}
+				h.donechan <- true
+				h.lock.Unlock()
+				return
+			}
+
 			if !Is5xx(res.code) && res.code != 429 { // success or fail
 				h.laststate = HCState{BackoffCount: c, State: S_STOPPED}
 				h.donechan <- true
