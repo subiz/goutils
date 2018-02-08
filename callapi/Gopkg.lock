@@ -17,7 +17,7 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
-  revision = "0ed95abb35c445290478a5348a7b38bb154135fd"
+  revision = "2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1"
 
 [solve-meta]
   analyzer-name = "dep"
