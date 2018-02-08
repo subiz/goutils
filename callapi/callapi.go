@@ -10,7 +10,6 @@ import (
 type Call struct {
 	hc  HttpClient
 	clo clockwork.Clock
-
 }
 
 type HCState struct {
@@ -188,14 +187,14 @@ func Is5xx(code int) bool {
 func (h *Handler) SyncSend(method, url string, header map[string]string, body []byte) {
 	bf := &backoff.ExponentialBackOff{
 		Multiplier:          2,
-		RandomizationFactor: 0.1,
+		RandomizationFactor: 0, // for testing
 		InitialInterval:     1 * time.Second,
+		MaxInterval:         30 * time.Minute,
 		Clock:               h.clo,
 	}
 	bf.Reset()
 	cancelled, c := false, 15
 	callchan := make(chan resp)
-
 	for c > 0 {
 		if cancelled {
 			return
@@ -239,7 +238,7 @@ func (h *Handler) SyncSend(method, url string, header map[string]string, body []
 				h.canceldone <- true
 				return
 			case <-h.clo.After(bf.NextBackOff()):
- 			}
+			}
 		case <-h.cancelchan:
 			if cancelled {
 				return
