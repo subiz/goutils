@@ -35,17 +35,12 @@ func TestAsyncSuccess(t *testing.T) {
 }
 
 type AsyncBackoffHC struct {
-	callsend chan bool
 	c int
 }
 
 func (hc *AsyncBackoffHC) Send(method, url string, header map[string]string, body []byte) (map[string][]string, []byte, int, error) {
-	if hc.c == 2 {
+	if hc.c == 3 {
 		return nil, nil, 200, nil
-	}
-	if hc.c == 1 {
-		hc.callsend <- true
-		hc.callsend <- true
 	}
 	hc.c++
 	return nil, nil, 500, nil
@@ -53,27 +48,43 @@ func (hc *AsyncBackoffHC) Send(method, url string, header map[string]string, bod
 
 func TestAsyncBackoff(t *testing.T) {
 	hc := &AsyncBackoffHC{}
-	hc.callsend = make(chan bool)
 	clo := clockwork.NewFakeClock()
 	handler := callapi.NewHandler(hc, clo)
-	handler.Post("https://sutu.shop", nil, nil)
-	go func() {
-		for {
-			clo.Advance(10 * time.Second)
-			clo.Advance(10 * time.Second)
-			clo.Advance(10 * time.Second)
-		}
-	}()
-	<- hc.callsend
+	handler.Post("https://sutu.shop", nil, nil) // will fail and sleep for 1 sec
+	clo.BlockUntil(1) // wait for one sleep
+	clo.Advance(1 * time.Second) // should wake goroutine and let it die again
+	clo.BlockUntil(1)
 	if handler.GetLastState().State != callapi.S_BACKINGOFF {
 		t.Fatalf("should be backing off, got %s", handler.GetLastState().State)
 	}
 	if handler.GetStatusCode() != 500 {
 		t.Fatalf("should be 500, got %d", handler.GetStatusCode())
 	}
-	<- hc.callsend
-	clo.Advance(10 * time.Second)
-	<- handler.Wait()
+
+	clo.Advance(1 * time.Second)
+	clo.BlockUntil(1)
+	if hc.c != 2 {
+		t.Fatalf("should equal 2, got %d", hc.c)
+	}
+	clo.Advance(1 * time.Second)
+	clo.BlockUntil(1)
+	if hc.c != 3 {
+		t.Fatalf("should equal 3, got %d", hc.c)
+	}
+	then := clo.Now()
+	cont := true
+	go func() {
+		for cont {
+			clo.Advance(1 * time.Second)
+			clo.BlockUntil(1)
+		}
+	}()
+	<-handler.Wait()
+	cont = false
+	sub := clo.Now().Sub(then) / time.Second
+	if 4 != sub {
+		t.Fatalf("should wait for 4 sec, got %d", sub)
+	}
 	if handler.GetLastState().State != callapi.S_STOPPED {
 		t.Fatalf("should be stoped, got %s", handler.GetLastState().State)
 	}
@@ -84,23 +95,12 @@ func TestAsyncBackoff(t *testing.T) {
 
 func TestAsyncStop(t *testing.T) {
 	hc := &AsyncBackoffHC{}
-	hc.callsend = make(chan bool)
 	clo := clockwork.NewFakeClock()
 	handler := callapi.NewHandler(hc, clo)
 	handler.Post("https://sutu.shop", nil, nil)
-	go func() {
-		for {
-			clo.Advance(10 * time.Second)
-			clo.Advance(10 * time.Second)
-			clo.Advance(10 * time.Second)
-		}
-	}()
-	<- hc.callsend
-	if handler.GetLastState().State != callapi.S_BACKINGOFF {
-		t.Fatalf("should be backing off, got %s", handler.GetLastState().State)
-	}
-	go func() {<- hc.callsend}()
+	clo.BlockUntil(1)
 	handler.Cancel()
+	clo.Advance(3 * time.Second)
 	if handler.GetLastState().State != callapi.S_CANCELLED {
 		t.Fatalf("should be cancelled, got %s", handler.GetLastState().State)
 	}
