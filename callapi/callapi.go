@@ -24,12 +24,19 @@ type AsyncCall interface {
 
 type AsyncRestAPIHandler interface {
 	Post(url string, header map[string]string, body []byte)
+	Get(url string, header map[string]string)
 	Cancel()
 	Wait() <-chan bool
 	GetLastState() HCState
 	GetBody() []byte
 	GetStatusCode() int
 	GetHeader(string) string
+}
+
+func (c *Call) Get(url string, header map[string]string) AsyncRestAPIHandler {
+	handler := NewHandler(c.hc, c.clo)
+	handler.Get(url, header)
+	return handler
 }
 
 func (c *Call) Post(url string, header map[string]string, body []byte) AsyncRestAPIHandler {
@@ -108,6 +115,17 @@ func (h *Handler) asyncSendHttp(method, url string, header map[string]string, bo
 	res := resp{}
 	res.header, res.body, res.code, res.err = h.hc.Send(method, url, header, body)
 	c <- res
+}
+
+func (h *Handler) Get(url string, header map[string]string) {
+	h.lock.Lock()
+	if h.laststate.State != S_STOPPED {
+		h.lock.Unlock()
+		panic("handler is in middle of something (not stopped), got " + h.laststate.State)
+	}
+	h.laststate = HCState{BackoffCount: 0, State: S_CALLING}
+	go h.SyncSend("GET", url, header, nil)
+	h.lock.Unlock()
 }
 
 func (h *Handler) Post(url string, header map[string]string, body []byte) {
