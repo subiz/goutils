@@ -241,6 +241,7 @@ func (h *Handler) SyncSend(method, url string, header map[string]string, body []
 				h.lock.Unlock()
 				return
 			}
+			println("error, will retry", string(h.body), h.statuscode)
 			// only retrying on 500 or 429
 			h.laststate = HCState{BackoffCount: c, State: S_BACKINGOFF}
 			h.lock.Unlock()
