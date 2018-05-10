@@ -26,12 +26,13 @@ func Loop(f func()) {
 			f()
 			return nil
 		}()
-		if err != nil {
-			fmt.Println(err.Description)
-			fmt.Println(err.Stack)
-			fmt.Println("will retries in 3 sec")
-			time.Sleep(3 * time.Second)
+		if err == nil {
+			break
 		}
+		fmt.Println(err.Description)
+		fmt.Println(err.Stack)
+		fmt.Println("will retries in 3 sec")
+		time.Sleep(3 * time.Second)
 	}
 }
 
