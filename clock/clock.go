@@ -1,14 +1,28 @@
 package clock
 
-import (
-	"time"
-)
+import "time"
 
 func GetMonthFromNano(created int64) int64 {
 	if IsNano(created) {
 		return created / int64(time.Hour) / 24 / 30
 	} else {
 		return created / 1000 / 60 / 60 / 24 / 30
+	}
+}
+
+func ToDay(t int64) int64 {
+	if IsNano(t) {
+		return t / 24 / int64(time.Hour)
+	} else { // t is microsecond, convert t to nano
+		return t * 1000000 / 24 / int64(time.Hour)
+	}
+}
+
+func ToHour(t int64) int64 {
+	if IsNano(t) {
+		return t / int64(time.Hour)
+	} else { // t is microsecond, convert t to nano
+		return t * 1000000 / int64(time.Hour)
 	}
 }
 
