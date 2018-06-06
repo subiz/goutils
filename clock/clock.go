@@ -18,6 +18,22 @@ func ToDay(t int64) int64 {
 	}
 }
 
+func ToMin(t int64) int64 {
+	if IsNano(t) {
+		return t / 24 / int64(time.Minute)
+	} else { // t is microsecond, convert t to nano
+		return t * 1000000 / 24 / int64(time.Minute)
+	}
+}
+
+func ToSec(t int64) int64 {
+	if IsNano(t) {
+		return t / 24 / int64(time.Second)
+	} else { // t is microsecond, convert t to nano
+		return t * 1000000 / 24 / int64(time.Second)
+	}
+}
+
 func ToHour(t int64) int64 {
 	if IsNano(t) {
 		return t / int64(time.Hour)
