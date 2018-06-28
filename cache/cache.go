@@ -11,21 +11,16 @@ type Cache struct {
 	*sync.Mutex
 	rclient *goredis.Client
 	lc      *lru.Cache
-	storef  func(key string, value []byte) error
 	loadf   func(key string) ([]byte, error)
-	removef func(key string) error
 	prefix  string
 }
 
 func New(prefix string, localsize int, redishosts []string, redispassword string,
-	storef func(string, []byte) error,
 	loadf func(string) ([]byte, error),
 	removef func(string) error) *Cache {
 	c := &Cache{
 		Mutex:   &sync.Mutex{},
-		storef:  storef,
 		loadf:   loadf,
-		removef: removef,
 		rclient: &goredis.Client{},
 	}
 	c.rclient.Connect(redishosts, redispassword)
@@ -64,18 +59,16 @@ func (c *Cache) Get(key string) ([]byte, error) {
 	return byts, nil
 }
 
-func (c *Cache) Add(key string, value []byte) error {
+func (c *Cache) Set(key string, value []byte) error {
 	c.Lock()
 	defer c.Unlock()
 	c.lc.Add(key, value)
-	c.rclient.Set(c.prefix + key, c.prefix + key, value, 10*time.Minute)
-	return c.storef(key, value)
+	return c.rclient.Set(c.prefix + key, c.prefix + key, value, 10*time.Minute)
 }
 
 func (c *Cache) Remove(key string) error {
 	c.Lock()
 	defer c.Unlock()
 	c.lc.Remove(key)
-	c.rclient.Expire(c.prefix + key, c.prefix + key, 0)
-	return c.removef(key)
+	return c.rclient.Expire(c.prefix + key, c.prefix + key, 0)
 }
