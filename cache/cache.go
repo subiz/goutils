@@ -14,16 +14,17 @@ type Cache struct {
 	storef  func(key string, value []byte) error
 	loadf   func(key string) ([]byte, error)
 	removef func(key string) error
+	prefix  string
 }
 
-func New(localsize int, redishosts []string, redispassword string,
-	storef func( string, []byte) error,
+func New(prefix string, localsize int, redishosts []string, redispassword string,
+	storef func(string, []byte) error,
 	loadf func(string) ([]byte, error),
 	removef func(string) error) *Cache {
 	c := &Cache{
-		Mutex: &sync.Mutex{},
-		storef: storef,
-		loadf: loadf,
+		Mutex:   &sync.Mutex{},
+		storef:  storef,
+		loadf:   loadf,
 		removef: removef,
 		rclient: &goredis.Client{},
 	}
@@ -45,7 +46,7 @@ func (c *Cache) Get(key string) ([]byte, error) {
 	}
 
 	// local cache miss
-	byts, err := c.rclient.Get(key, key)
+	byts, err := c.rclient.Get(c.prefix + key, c.prefix + key)
 	if err == nil {
 		c.lc.Add(key, byts) // store back to client
 		return byts, nil
@@ -59,7 +60,7 @@ func (c *Cache) Get(key string) ([]byte, error) {
 
 	// store back
 	c.lc.Add(key, byts)
-	c.rclient.Set(key, key, byts, 10 * time.Minute) // ignore err
+	c.rclient.Set(c.prefix + key, c.prefix + key, byts, 10*time.Minute) // ignore err
 	return byts, nil
 }
 
@@ -67,7 +68,7 @@ func (c *Cache) Add(key string, value []byte) error {
 	c.Lock()
 	defer c.Unlock()
 	c.lc.Add(key, value)
-	c.rclient.Set(key, key, value, 10*time.Minute)
+	c.rclient.Set(c.prefix + key, c.prefix + key, value, 10*time.Minute)
 	return c.storef(key, value)
 }
 
@@ -75,6 +76,6 @@ func (c *Cache) Remove(key string) error {
 	c.Lock()
 	defer c.Unlock()
 	c.lc.Remove(key)
-	c.rclient.Expire(key, key, 0)
+	c.rclient.Expire(c.prefix + key, c.prefix + key, 0)
 	return c.removef(key)
 }
