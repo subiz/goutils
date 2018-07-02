@@ -36,6 +36,7 @@ func New(prefix string, localsize int, redishosts []string, redispassword string
 	loadf func(string) ([]byte, error), expire time.Duration) *Cache {
 	c := &Cache{
 		Mutex:   &sync.Mutex{},
+		prefix:  prefix,
 		expires: make(map[string]time.Time),
 		exp:     expire,
 		loadf:   loadf,
