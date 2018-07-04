@@ -52,6 +52,27 @@ func New(prefix string, localsize int, redishosts []string, redispassword string
 	return c
 }
 
+func (c *Cache) GetGlobal(key string) ([]byte, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	byts, err := c.rclient.Get(c.prefix+key, c.prefix+key)
+	if err == nil {
+		c.expires[key] = time.Now()
+		return byts, nil
+	}
+
+	// redis cache miss
+	byts, err = c.loadf(key)
+	if err != nil {
+		return byts, err
+	}
+
+	// store back
+	c.expires[key] = time.Now()
+	return byts, c.rclient.Set(c.prefix+key, c.prefix+key, byts, 10*c.exp) // ignore err
+}
+
 func (c *Cache) Get(key string) ([]byte, error) {
 	c.Lock()
 	defer c.Unlock()
