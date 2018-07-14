@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	"bitbucket.org/subiz/header/lang"
+	"git.subiz.net/header/lang"
 	"fmt"
 	json "github.com/pquerna/ffjson/ffjson"
 	"hash/crc32"

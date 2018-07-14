@@ -207,16 +207,13 @@ func (h *Handler) SyncSend(method, url string, header map[string]string, body []
 		Multiplier:          2,
 		RandomizationFactor: 0, // for testing
 		InitialInterval:     1 * time.Second,
-		MaxInterval:         30 * time.Minute,
+		MaxInterval:         1 * time.Minute,
 		Clock:               h.clo,
 	}
 	bf.Reset()
 	cancelled, c := false, 15
 	callchan := make(chan resp)
-	for c > 0 {
-		if cancelled {
-			return
-		}
+	for c > 0 && !cancelled {
 		go h.asyncSendHttp(method, url, header, body, callchan)
 		select {
 		case res := <-callchan:

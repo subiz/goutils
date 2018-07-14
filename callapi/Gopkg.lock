@@ -4,8 +4,8 @@
 [[projects]]
   name = "github.com/cenkalti/backoff"
   packages = ["."]
-  revision = "61153c768f31ee5f130071d08fc82b85208528de"
-  version = "v1.1.0"
+  revision = "2ea60e5f094469f9e65adb9cd103795b73ae743e"
+  version = "v2.0.0"
 
 [[projects]]
   name = "github.com/jonboulle/clockwork"
@@ -17,11 +17,11 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
-  revision = "2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1"
+  revision = "d0887baf81f4598189d4e12a37c6da86f0bba4d0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8be0e40091f41a1f6ec1eadc8e3a31bdd141885fa64c05bf9875ee9b68f85a86"
+  inputs-digest = "b0eb746c1bb0a7c53a03c953d7ac9f61f75819c707578617910711c8e227ef82"
   solver-name = "gps-cdcl"
   solver-version = 1

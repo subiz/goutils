@@ -2,7 +2,7 @@ package callapi_test
 
 import (
 	"testing"
-	"bitbucket.org/subiz/goutils/callapi"
+	"git.subiz.net/goutils/callapi"
 	"github.com/jonboulle/clockwork"
 	"time"
 )

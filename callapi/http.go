@@ -1,10 +1,10 @@
 package callapi
 
 import (
-	"time"
-	"net/http"
 	"bytes"
 	"io/ioutil"
+	"net/http"
+	"time"
 )
 
 type HttpClient interface {
@@ -18,9 +18,7 @@ type FHC struct {
 
 func NewFHC() *FHC {
 	fhc := &FHC{}
-	fhc.client = &http.Client{
-		Timeout: 1 * time.Minute,
-	}
+	fhc.client = &http.Client{Timeout: 30 * time.Second}
 	return fhc
 }
 

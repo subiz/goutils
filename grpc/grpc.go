@@ -1,8 +1,8 @@
 package grpc
 
 import (
-	co "bitbucket.org/subiz/header/common"
-	"bitbucket.org/subiz/header/lang"
+	co "git.subiz.net/header/common"
+	"git.subiz.net/header/lang"
 	b64 "encoding/base64"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
