@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"bitbucket.org/subiz/goredis"
+	"git.subiz.net/goredis"
 	lru "github.com/hashicorp/golang-lru"
 	"sync"
 	"time"
