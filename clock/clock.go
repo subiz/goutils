@@ -10,6 +10,11 @@ func GetMonthFromNano(created int64) int64 {
 	}
 }
 
+func GetHourOfDay(t int64) int {
+	s := ToMili(t) / 1000
+	return time.Unix(s, 0).Hour()
+}
+
 func ToDay(t int64) int64 {
 	if IsNano(t) {
 		return t / 24 / int64(time.Hour)
