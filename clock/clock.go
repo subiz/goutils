@@ -67,3 +67,7 @@ func ToMili(t int64) int64 {
 	}
 	return t
 }
+
+func RoundSecNano(t int64) int64 {
+	return ToSec(t) * int64(time.Second)
+}
