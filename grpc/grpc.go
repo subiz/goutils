@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"git.subiz.net/errors"
 	co "git.subiz.net/header/common"
 	"git.subiz.net/header/lang"
 	b64 "encoding/base64"
@@ -76,16 +77,16 @@ func unaryinterceptorhandler(ctx context.Context, req interface{}, _ *grpc.Unary
 			if r := recover(); r != nil {
 				ok := false
 				if err, ok = r.(error); !ok {
-					err = New500(lang.T_internal_error, r)
+					err = errors.New(500, lang.T_internal_error, r)
 				}
 			}
 		}()
 		ret, err = handler(ctx, req)
 	}()
 	if err != nil {
-		e, ok := err.(*Error)
+		e, ok := err.(*errors.Error)
 		if !ok {
-			e = E500(err, lang.T_internal_error)
+			e = errors.Wrap(err, 500, lang.T_internal_error)
 		}
 		md := metadata.Pairs(PanicKey, e.Error())
 		grpc.SendHeader(ctx, md)
@@ -98,10 +99,10 @@ func NewRecoveryInterceptor() grpc.ServerOption {
 	return grpc.UnaryInterceptor(unaryinterceptorhandler)
 }
 
-func GetPanic(md metadata.MD) *Error {
+func GetPanic(md metadata.MD) *errors.Error {
 	errs := strings.Join(md[PanicKey], "")
 	if errs == "" {
 		return nil
 	}
-	return FromError(errs)
+	return errors.FromError(errs)
 }

@@ -3,13 +3,19 @@
 
 [[projects]]
   branch = "master"
+  name = "git.subiz.net/errors"
+  packages = ["."]
+  revision = "9608e0e21262a47e318d2365e8d4261194700a05"
+
+[[projects]]
+  branch = "master"
   name = "git.subiz.net/header"
   packages = [
     "auth",
     "common",
     "lang"
   ]
-  revision = "f5d7f5c7a587e79a04c4ba87a2eb5b3ebc331af4"
+  revision = "c6142b6dc5d077b23a785baa09ddb4f4f85039cb"
 
 [[projects]]
   branch = "master"
@@ -21,7 +27,7 @@
     "ptypes/duration",
     "ptypes/timestamp"
   ]
-  revision = "70b3af33377e7aa25ae42977bed93cc6b90f0373"
+  revision = "93b26e6a70e37abb14f2f88194949312b0592a84"
 
 [[projects]]
   branch = "master"
@@ -31,7 +37,7 @@
     "fflib/v1",
     "fflib/v1/internal"
   ]
-  revision = "d49c2bc1aa135aad0c6f4fc2056623ec78f5d5ac"
+  revision = "af8b230fcd2007c7095168ca8ab94c68b60840c6"
 
 [[projects]]
   branch = "master"
@@ -45,7 +51,7 @@
     "internal/timeseries",
     "trace"
   ]
-  revision = "d0887baf81f4598189d4e12a37c6da86f0bba4d0"
+  revision = "3673e40ba22529d22c3fd7c93e97b0ce50fa7bdd"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -72,7 +78,7 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "e92b116572682a5b432ddd840aeaba2a559eeff1"
+  revision = "02b4e95473316948020af0b7a4f0f22c73929b0e"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -109,6 +115,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7effc77481aed1bca92799632235626b7b2500750ffce34bbe4465ac9ebdd98c"
+  inputs-digest = "2f3b2303b54c1767e3aa1486b86d411c6521751396332d0cae5547891e70d3d1"
   solver-name = "gps-cdcl"
   solver-version = 1
