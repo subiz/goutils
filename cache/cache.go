@@ -17,6 +17,7 @@ type Cache struct {
 	exp     time.Duration
 }
 
+// clearExpire delete expire data from local cache (trigger 5mins)
 func (c *Cache) clearExpire() {
 	for {
 		c.Lock()
@@ -52,41 +53,46 @@ func New(prefix string, localsize int, redishosts []string, redispassword string
 	return c
 }
 
+// GetGlobal loads data only from redis or loadf, it skip local cache
 func (c *Cache) GetGlobal(key string) ([]byte, error) {
-	c.Lock()
-	defer c.Unlock()
-
 	byts, err := c.rclient.Get(c.prefix+key, c.prefix+key)
+	c.Lock()
 	if err == nil {
 		c.expires[key] = time.Now()
+		c.Unlock()
 		return byts, nil
 	}
+	c.Unlock()
 
 	// redis cache miss
 	byts, err = c.loadf(key)
 	if err != nil {
 		return byts, err
 	}
-
 	// store back
+	c.Lock()
 	c.expires[key] = time.Now()
+	c.Unlock()
 	return byts, c.rclient.Set(c.prefix+key, c.prefix+key, byts, 10*c.exp) // ignore err
 }
 
+// Get loads data from local cache, if miss, loads from redis, if also miss,
+// call loadf to get the fresh data
 func (c *Cache) Get(key string) ([]byte, error) {
 	c.Lock()
-	defer c.Unlock()
-
 	v, ok := c.lc.Get(key)
 	if ok && time.Since(c.expires[key]) < c.exp {
+		c.Unlock()
 		return v.([]byte), nil
 	}
-
+	c.Unlock()
 	// local cache miss
 	byts, err := c.rclient.Get(c.prefix+key, c.prefix+key)
 	if err == nil {
+		c.Lock()
 		c.expires[key] = time.Now()
 		c.lc.Add(key, byts) // store back to client
+		c.Unlock()
 		return byts, nil
 	}
 
@@ -96,29 +102,28 @@ func (c *Cache) Get(key string) ([]byte, error) {
 		return byts, err
 	}
 
+	c.Lock()
 	// store back
 	c.expires[key] = time.Now()
 	c.lc.Add(key, byts)
+	c.Unlock()
+
 	c.rclient.Set(c.prefix+key, c.prefix+key, byts, 10*c.exp) // ignore err
 	return byts, nil
 }
 
 func (c *Cache) Set(key string, value []byte) error {
 	c.Lock()
-	defer c.Unlock()
 	c.lc.Add(key, value)
 	c.expires[key] = time.Now()
+	c.Unlock()
 	return c.rclient.Set(c.prefix+key, c.prefix+key, value, 10*c.exp)
-}
-
-func (c *Cache) remove(key string) error {
-	c.lc.Remove(key)
-	delete(c.expires, key)
-	return c.rclient.Expire(c.prefix+key, c.prefix+key, 0)
 }
 
 func (c *Cache) Remove(key string) error {
 	c.Lock()
-	defer c.Unlock()
-	return c.remove(key)
+	c.lc.Remove(key)
+	delete(c.expires, key)
+	c.Unlock()
+	return c.rclient.Expire(c.prefix+key, c.prefix+key, 0)
 }
