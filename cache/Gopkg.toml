@@ -27,10 +27,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "git.subiz.net/goredis"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/hashicorp/golang-lru"
 
 [prune]
