@@ -3,6 +3,39 @@
 
 [[projects]]
   branch = "master"
+  name = "git.subiz.net/goredis"
+  packages = ["."]
+  revision = "cf3016dd006d302fb50e4d625287ef1e0791cf83"
+
+[[projects]]
+  branch = "master"
+  name = "git.subiz.net/goutils"
+  packages = ["map"]
+  revision = "4d3ef405bf39c89c7840f3a63b238340a62ed17a"
+
+[[projects]]
+  name = "github.com/go-redis/redis"
+  packages = [
+    ".",
+    "internal",
+    "internal/consistenthash",
+    "internal/hashtag",
+    "internal/pool",
+    "internal/proto",
+    "internal/singleflight",
+    "internal/util"
+  ]
+  revision = "480db94d33e6088e08d628833b6c0705451d24bb"
+  version = "v6.13.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "11bd559057bb9c65e24d1bd7f436d375323a8565"
+
+[[projects]]
+  branch = "master"
   name = "github.com/hashicorp/golang-lru"
   packages = [
     ".",
@@ -13,6 +46,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9afc5544b91cf69046b43e2b8f5f2bf3621da15076496898f1681469c7fc2b49"
+  inputs-digest = "e3a5320ac938abda0c2867ced446fa981ed32982e5bee2f2fc56b5edd5a261fa"
   solver-name = "gps-cdcl"
   solver-version = 1
