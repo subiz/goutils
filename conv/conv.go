@@ -6,6 +6,9 @@ var t__, f__ = true, false
 var True, False = &t__, &f__
 
 func S(s interface{}) *string {
+	if s == nil {
+		return S("")
+	}
 	switch v := s.(type) {
 	case string:
 		return &v
