@@ -10,6 +10,9 @@ func S(s interface{}) *string {
 		return S("")
 	}
 	switch v := s.(type) {
+	case []byte:
+		b := string(v)
+		return &b
 	case string:
 		return &v
 	case fmt.Stringer:
