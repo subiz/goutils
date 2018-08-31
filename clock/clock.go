@@ -1,54 +1,35 @@
 package clock
 
-import "time"
+import (
+	"time"
+)
 
 func GetMonthFromNano(created int64) int64 {
-	if IsNano(created) {
-		return created / int64(time.Hour) / 24 / 30
-	} else {
-		return created / 1000 / 60 / 60 / 24 / 30
-	}
+	return ToNano(created) / int64(time.Hour) / 24 / 30
 }
 
 func GetHourOfDay(t int64) int {
-	s := ToMili(t) / 1000
-	return time.Unix(s, 0).Hour()
+	return time.Unix(0, ToNano(t)).Hour()
 }
 
 func ToDay(t int64) int64 {
-	if IsNano(t) {
-		return t / 24 / int64(time.Hour)
-	} else { // t is microsecond, convert t to nano
-		return t * 1000000 / 24 / int64(time.Hour)
-	}
+	return ToNano(t) / 24 / int64(time.Hour)
 }
 
 func ToMin(t int64) int64 {
-	if IsNano(t) {
-		return t / int64(time.Minute)
-	} else { // t is microsecond, convert t to nano
-		return t * 1000000 / int64(time.Minute)
-	}
+	return ToNano(t) / int64(time.Minute)
 }
 
 func ToSec(t int64) int64 {
-	if IsNano(t) {
-		return t / int64(time.Second)
-	} else { // t is microsecond, convert t to nano
-		return t * 1000000 / int64(time.Second)
-	}
+	return ToNano(t) / int64(time.Second)
 }
 
 func ToHour(t int64) int64 {
-	if IsNano(t) {
-		return t / int64(time.Hour)
-	} else { // t is microsecond, convert t to nano
-		return t * 1000000 / int64(time.Hour)
-	}
+	return ToNano(t) / int64(time.Hour)
 }
 
 func IsNano(t int64) bool {
-	return t > 1000000000000000
+	return t > 1e+18
 }
 
 func GetThisYear() int64 {
@@ -62,12 +43,22 @@ func Now() time.Time {
 const OneMonth = 31 * 24 * time.Hour
 
 func ToMili(t int64) int64 {
-	if t > 1000000000000000 {
-		return t / 1000000
-	}
-	return t
+	return ToNano(t) / 1e+6
 }
 
 func RoundSecNano(t int64) int64 {
 	return ToSec(t) * int64(time.Second)
+}
+
+func ToNano(t int64) int64 {
+	if t > 1e+18 { // nanoseconds
+		return t
+	}
+	if t > 1e+15 { // microseconds
+		return t * 1e+3
+	}
+	if t > 1e+12 { // milliseconds
+		return t * 1e+6
+	}
+	return t * 1e+9 // seconds
 }
