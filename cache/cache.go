@@ -1,13 +1,14 @@
 package cache
 
 import (
-	lru "github.com/hashicorp/golang-lru"
 	"sync"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru"
 )
 
 type Cache struct {
-	*sync.Mutex
+	*sync.RWMutex
 	lc      *lru.Cache
 	loadf   func(key string) ([]byte, error)
 	prefix  string
@@ -34,7 +35,7 @@ func (c *Cache) clearExpire() {
 func New(prefix string, localsize int, redishosts []string, redispassword string,
 	loadf func(string) ([]byte, error), expire time.Duration) *Cache {
 	c := &Cache{
-		Mutex:   &sync.Mutex{},
+		RWMutex: &sync.RWMutex{},
 		prefix:  prefix,
 		expires: make(map[string]time.Time),
 		exp:     expire,
@@ -57,13 +58,13 @@ func (c *Cache) GetGlobal(key string) ([]byte, error) {
 // Get loads data from local cache, if miss, loads from redis, if also miss,
 // call loadf to get the fresh data
 func (c *Cache) Get(key string) ([]byte, error) {
-	c.Lock()
+	c.RLock()
 	v, ok := c.lc.Get(key)
 	if ok && time.Since(c.expires[key]) < c.exp {
-		c.Unlock()
+		c.RUnlock()
 		return v.([]byte), nil
 	}
-	c.Unlock()
+	c.RUnlock()
 
 	// cache miss
 	byts, err := c.loadf(key)
