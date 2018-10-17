@@ -1,16 +1,17 @@
 package grpc
 
 import (
+	b64 "encoding/base64"
+	"fmt"
+	"strings"
+
 	"git.subiz.net/errors"
 	co "git.subiz.net/header/common"
 	"git.subiz.net/header/lang"
-	b64 "encoding/base64"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"strings"
-	"fmt"
 )
 
 // CredKey is key which credential is putted in medatada.MD
@@ -75,10 +76,7 @@ func unaryinterceptorhandler(ctx context.Context, req interface{}, _ *grpc.Unary
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				ok := false
-				if err, ok = r.(error); !ok {
-					err = errors.New(500, lang.T_internal_error, r)
-				}
+				err = errors.Default(r)
 			}
 		}()
 		ret, err = handler(ctx, req)
