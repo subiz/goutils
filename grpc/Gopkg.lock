@@ -3,44 +3,41 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:66b95fae9fc33b7da7bcaf975750b7c072f9fd0213e4f0fa5fadbb4a41b4cd51"
   name = "git.subiz.net/errors"
   packages = ["."]
-  revision = "9608e0e21262a47e318d2365e8d4261194700a05"
+  pruneopts = "UT"
+  revision = "8c8c16c095170dd615496d36650b4d190f33540e"
 
 [[projects]]
   branch = "master"
+  digest = "1:136953cce3e83493df305b5bb6387e5d981d9f7ff288cc43e88a0a57bb9bd65f"
   name = "git.subiz.net/header"
   packages = [
     "auth",
     "common",
-    "lang"
+    "lang",
   ]
+  pruneopts = "UT"
   revision = "c6142b6dc5d077b23a785baa09ddb4f4f85039cb"
 
 [[projects]]
   branch = "master"
+  digest = "1:3a4f95a535997b26ad177035cd70e4f557a7b25d1b6e83d300e3407f26199304"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
-    "ptypes/timestamp"
+    "ptypes/timestamp",
   ]
+  pruneopts = "UT"
   revision = "93b26e6a70e37abb14f2f88194949312b0592a84"
 
 [[projects]]
   branch = "master"
-  name = "github.com/pquerna/ffjson"
-  packages = [
-    "ffjson",
-    "fflib/v1",
-    "fflib/v1/internal"
-  ]
-  revision = "af8b230fcd2007c7095168ca8ab94c68b60840c6"
-
-[[projects]]
-  branch = "master"
+  digest = "1:35dc91eff9861545fea1fd5e723a72202aaeb668f7cda7c415a226ea9e00c35d"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -49,11 +46,13 @@
     "http2/hpack",
     "idna",
     "internal/timeseries",
-    "trace"
+    "trace",
   ]
+  pruneopts = "UT"
   revision = "3673e40ba22529d22c3fd7c93e97b0ce50fa7bdd"
 
 [[projects]]
+  digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"
   name = "golang.org/x/text"
   packages = [
     "collate",
@@ -69,18 +68,22 @@
     "unicode/bidi",
     "unicode/cldr",
     "unicode/norm",
-    "unicode/rangetable"
+    "unicode/rangetable",
   ]
+  pruneopts = "UT"
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:601e63e7d4577f907118bec825902505291918859d223bce015539e79f1160e3"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
+  pruneopts = "UT"
   revision = "02b4e95473316948020af0b7a4f0f22c73929b0e"
 
 [[projects]]
+  digest = "1:2dab32a43451e320e49608ff4542fdfc653c95dcc35d0065ec9c6c3dd540ed74"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -107,14 +110,23 @@
     "stats",
     "status",
     "tap",
-    "transport"
+    "transport",
   ]
+  pruneopts = "UT"
   revision = "168a6198bcb0ef175f7dacec0b8691fc141dc9b8"
   version = "v1.13.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2f3b2303b54c1767e3aa1486b86d411c6521751396332d0cae5547891e70d3d1"
+  input-imports = [
+    "git.subiz.net/errors",
+    "git.subiz.net/header/common",
+    "git.subiz.net/header/lang",
+    "github.com/golang/protobuf/proto",
+    "golang.org/x/net/context",
+    "google.golang.org/grpc",
+    "google.golang.org/grpc/metadata",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
