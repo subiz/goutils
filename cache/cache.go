@@ -1,14 +1,15 @@
 package cache
 
 import (
+	"git.subiz.net/goredis"
+	lru "github.com/hashicorp/golang-lru"
 	"sync"
 	"time"
-
-	lru "github.com/hashicorp/golang-lru"
 )
 
 type Cache struct {
-	*sync.RWMutex
+	*sync.Mutex
+	rclient *goredis.Client
 	lc      *lru.Cache
 	loadf   func(key string) ([]byte, error)
 	prefix  string
@@ -35,12 +36,14 @@ func (c *Cache) clearExpire() {
 func New(prefix string, localsize int, redishosts []string, redispassword string,
 	loadf func(string) ([]byte, error), expire time.Duration) *Cache {
 	c := &Cache{
-		RWMutex: &sync.RWMutex{},
+		Mutex:   &sync.Mutex{},
 		prefix:  prefix,
 		expires: make(map[string]time.Time),
 		exp:     expire,
 		loadf:   loadf,
+		rclient: &goredis.Client{},
 	}
+	c.rclient.Connect(redishosts, redispassword)
 	var err error
 	c.lc, err = lru.New(localsize)
 	if err != nil {
@@ -52,22 +55,49 @@ func New(prefix string, localsize int, redishosts []string, redispassword string
 
 // GetGlobal loads data only from redis or loadf, it skip local cache
 func (c *Cache) GetGlobal(key string) ([]byte, error) {
-	return c.loadf(key)
+	byts, err := c.rclient.Get(c.prefix+key, c.prefix+key)
+	c.Lock()
+	if err == nil {
+		c.expires[key] = time.Now()
+		c.Unlock()
+		return byts, nil
+	}
+	c.Unlock()
+
+	// redis cache miss
+	byts, err = c.loadf(key)
+	if err != nil {
+		return byts, err
+	}
+	// store back
+	c.Lock()
+	c.expires[key] = time.Now()
+	c.Unlock()
+	return byts, c.rclient.Set(c.prefix+key, c.prefix+key, byts, 10*c.exp) // ignore err
 }
 
 // Get loads data from local cache, if miss, loads from redis, if also miss,
 // call loadf to get the fresh data
 func (c *Cache) Get(key string) ([]byte, error) {
-	c.RLock()
+	c.Lock()
 	v, ok := c.lc.Get(key)
 	if ok && time.Since(c.expires[key]) < c.exp {
-		c.RUnlock()
+		c.Unlock()
 		return v.([]byte), nil
 	}
-	c.RUnlock()
+	c.Unlock()
+	// local cache miss
+	byts, err := c.rclient.Get(c.prefix+key, c.prefix+key)
+	if err == nil {
+		c.Lock()
+		c.expires[key] = time.Now()
+		c.lc.Add(key, byts) // store back to client
+		c.Unlock()
+		return byts, nil
+	}
 
-	// cache miss
-	byts, err := c.loadf(key)
+	// redis cache miss
+	byts, err = c.loadf(key)
 	if err != nil {
 		return byts, err
 	}
@@ -78,6 +108,7 @@ func (c *Cache) Get(key string) ([]byte, error) {
 	c.lc.Add(key, byts)
 	c.Unlock()
 
+	c.rclient.Set(c.prefix+key, c.prefix+key, byts, 10*c.exp) // ignore err
 	return byts, nil
 }
 
@@ -86,7 +117,7 @@ func (c *Cache) Set(key string, value []byte) error {
 	c.lc.Add(key, value)
 	c.expires[key] = time.Now()
 	c.Unlock()
-	return nil
+	return c.rclient.Set(c.prefix+key, c.prefix+key, value, 10*c.exp)
 }
 
 func (c *Cache) Remove(key string) error {
@@ -94,5 +125,5 @@ func (c *Cache) Remove(key string) error {
 	c.lc.Remove(key)
 	delete(c.expires, key)
 	c.Unlock()
-	return nil
+	return c.rclient.Expire(c.prefix+key, c.prefix+key, 0)
 }
