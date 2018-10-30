@@ -3,17 +3,30 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:043f4069cbb8140d59d31d0aa3e7b20a272879cf2af69abb35dfd23836f23dfb"
   name = "git.subiz.net/goredis"
   packages = ["."]
-  revision = "cf3016dd006d302fb50e4d625287ef1e0791cf83"
+  pruneopts = "UT"
+  revision = "0b69ea0bd8a141c7bfea6fbaa7c3ad426f334146"
 
 [[projects]]
   branch = "master"
+  digest = "1:ae458393f8b9ca35a1ac9de8e98fcaf535297b3382daac566c07b4afa3e45329"
   name = "git.subiz.net/goutils"
   packages = ["map"]
-  revision = "4d3ef405bf39c89c7840f3a63b238340a62ed17a"
+  pruneopts = "UT"
+  revision = "2be670243ae613a392238a343bbf69c13e9f72e4"
 
 [[projects]]
+  branch = "master"
+  digest = "1:d6afaeed1502aa28e80a4ed0981d570ad91b2579193404256ce672ed0a609e0d"
+  name = "github.com/beorn7/perks"
+  packages = ["quantile"]
+  pruneopts = "UT"
+  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+
+[[projects]]
+  digest = "1:34a9a60fade37f8009ed4a19e02924198aba3eabfcc120ee5c6002b7de17212d"
   name = "github.com/go-redis/redis"
   packages = [
     ".",
@@ -23,29 +36,90 @@
     "internal/pool",
     "internal/proto",
     "internal/singleflight",
-    "internal/util"
+    "internal/util",
   ]
-  revision = "480db94d33e6088e08d628833b6c0705451d24bb"
-  version = "v6.13.2"
+  pruneopts = "UT"
+  revision = "b3d9bf10f6666b2ee5100a6f3f84f4caf3b4e37d"
+  version = "v6.14.2"
 
 [[projects]]
   branch = "master"
+  digest = "1:8715cd47fd0fa392884aab36611f25631b1540e7a21c5df171af3e397b42f302"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
-  revision = "11bd559057bb9c65e24d1bd7f436d375323a8565"
+  pruneopts = "UT"
+  revision = "0382e7636b97e3f60fb188fef87a8d2c42c51ba9"
 
 [[projects]]
   branch = "master"
+  digest = "1:8ec8d88c248041a6df5f6574b87bc00e7e0b493881dad2e7ef47b11dc69093b5"
   name = "github.com/hashicorp/golang-lru"
   packages = [
     ".",
-    "simplelru"
+    "simplelru",
   ]
-  revision = "0fb14efe8c47ae851c0034ed7a448854d3d34cf3"
+  pruneopts = "UT"
+  revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
+
+[[projects]]
+  digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
+  name = "github.com/matttproud/golang_protobuf_extensions"
+  packages = ["pbutil"]
+  pruneopts = "UT"
+  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+  version = "v1.0.1"
+
+[[projects]]
+  digest = "1:f43f7e80e273179b98af510dd453d184c7860920d6f9aa5c89e06aed0494a7a8"
+  name = "github.com/prometheus/client_golang"
+  packages = [
+    "prometheus",
+    "prometheus/internal",
+  ]
+  pruneopts = "UT"
+  revision = "1cafe34db7fdec6022e17e00e1c1ea501022f3e4"
+  version = "v0.9.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2d5cd61daa5565187e1d96bae64dbbc6080dacf741448e9629c64fd93203b0d4"
+  name = "github.com/prometheus/client_model"
+  packages = ["go"]
+  pruneopts = "UT"
+  revision = "5c3871d89910bfb32f5fcab2aa4b9ec68e65a99f"
+
+[[projects]]
+  branch = "master"
+  digest = "1:db712fde5d12d6cdbdf14b777f0c230f4ff5ab0be8e35b239fc319953ed577a4"
+  name = "github.com/prometheus/common"
+  packages = [
+    "expfmt",
+    "internal/bitbucket.org/ww/goautoneg",
+    "model",
+  ]
+  pruneopts = "UT"
+  revision = "7e9e6cabbd393fc208072eedef99188d0ce788b6"
+
+[[projects]]
+  branch = "master"
+  digest = "1:ef74914912f99c79434d9c09658274678bc85080ebe3ab32bec3940ebce5e1fc"
+  name = "github.com/prometheus/procfs"
+  packages = [
+    ".",
+    "internal/util",
+    "nfs",
+    "xfs",
+  ]
+  pruneopts = "UT"
+  revision = "185b4288413d2a0dd0806f78c90dde719829e5ae"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "e3a5320ac938abda0c2867ced446fa981ed32982e5bee2f2fc56b5edd5a261fa"
+  input-imports = [
+    "git.subiz.net/goredis",
+    "github.com/hashicorp/golang-lru",
+    "github.com/prometheus/client_golang/prometheus",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1

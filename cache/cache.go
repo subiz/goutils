@@ -3,8 +3,33 @@ package cache
 import (
 	"git.subiz.net/goredis"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/prometheus/client_golang/prometheus"
 	"sync"
 	"time"
+)
+
+var LocalCacheHitCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Subsystem: "global",
+		Name:      "local_cache_hit",
+		Help:      "Local cache hits",
+	},
+)
+
+var GlobalCacheHitCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Subsystem: "global",
+		Name:      "global_cache_hit",
+		Help:      "Local cache hits",
+	},
+)
+
+var TotalCacheHitCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Subsystem: "global",
+		Name:      "total_cache_hit",
+		Help:      "Local cache hits",
+	},
 )
 
 type Cache struct {
@@ -55,11 +80,13 @@ func New(prefix string, localsize int, redishosts []string, redispassword string
 
 // GetGlobal loads data only from redis or loadf, it skip local cache
 func (c *Cache) GetGlobal(key string) ([]byte, error) {
+	TotalCacheHitCounter.Inc()
 	byts, err := c.rclient.Get(c.prefix+key, c.prefix+key)
 	c.Lock()
 	if err == nil {
 		c.expires[key] = time.Now()
 		c.Unlock()
+		GlobalCacheHitCounter.Inc()
 		return byts, nil
 	}
 	c.Unlock()
@@ -79,16 +106,19 @@ func (c *Cache) GetGlobal(key string) ([]byte, error) {
 // Get loads data from local cache, if miss, loads from redis, if also miss,
 // call loadf to get the fresh data
 func (c *Cache) Get(key string) ([]byte, error) {
+	TotalCacheHitCounter.Inc()
 	c.Lock()
 	v, ok := c.lc.Get(key)
 	if ok && time.Since(c.expires[key]) < c.exp {
 		c.Unlock()
+		LocalCacheHitCounter.Inc()
 		return v.([]byte), nil
 	}
 	c.Unlock()
 	// local cache miss
 	byts, err := c.rclient.Get(c.prefix+key, c.prefix+key)
 	if err == nil {
+		GlobalCacheHitCounter.Inc()
 		c.Lock()
 		c.expires[key] = time.Now()
 		c.lc.Add(key, byts) // store back to client
