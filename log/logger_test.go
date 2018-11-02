@@ -16,3 +16,17 @@ func TestTimmer(t *testing.T) {
 	TimeEnd("haivan")
 	TimeCheck("haivan", "ba")
 }
+
+func TestAssert(t *testing.T) {
+	Assert(nil, nil)
+	Assert(1, 1)
+	Assert("a", "a")
+	Assert("a", "b")
+}
+
+func TestNotAssert(t *testing.T) {
+	NotAssert("a", nil)
+	NotAssert(1, 2)
+	NotAssert("a", "b")
+	NotAssert("a", "a")
+}

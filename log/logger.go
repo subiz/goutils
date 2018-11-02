@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"git.subiz.net/goutils/map"
-	compb "git.subiz.net/header/common"
-	"git.subiz.net/header/logan"
-	"git.subiz.net/kafka"
 	"os"
 	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
+
+	"git.subiz.net/goutils/map"
+	compb "git.subiz.net/header/common"
+	"git.subiz.net/header/logan"
+	"git.subiz.net/kafka"
 )
 
 type key int
@@ -73,7 +74,7 @@ func (l *Logger) Log(persist bool, ctx context.Context, level logan.Level, v ...
 		message = []byte(fmt.Sprintf("%v", t))
 	}
 
-	fmt.Println(t)
+	echo(t)
 
 	if l.pub == nil {
 		return
@@ -160,7 +161,7 @@ func splitLineNumber(s string) string {
 }
 
 // Log print anything to stdout
-func print(v ...interface{}) {
+func echo(v ...interface{}) {
 	format := strings.Repeat("%v ", len(v))
 	message := fmt.Sprintf(format, v...)
 	fmt.Printf("%s %s\n", getCaller(), message)
@@ -265,11 +266,32 @@ func Logf(ctx context.Context, level logan.Level, format string, v ...interface{
 }
 
 func chopPath(path string) string {
-	defaultpath := "/src/bitbucket.org/subiz/"
-
-	i := strings.LastIndex(path, defaultpath)
-	if i < 0 {
-		return path
+	defaultPaths := []string{
+		"/src/bitbucket.org/subiz/",
+		"/src/git.subiz.net/",
+		"/src/github.com/subiz/",
 	}
-	return path[i+len(defaultpath):]
+	for _, p := range defaultPaths {
+		i := strings.LastIndex(path, p)
+		if i >= 0 {
+			return path[i+len(p):]
+		}
+	}
+	return path
+}
+
+func Assert(a, b interface{}) {
+	aa, _ := json.Marshal(a)
+	bb, _ := json.Marshal(b)
+	if string(aa) != string(bb) {
+		Errorf(context.Background(), "must equal, got: %s, expected: %s", string(aa), string(bb))
+	}
+}
+
+func NotAssert(a, b interface{}) {
+	aa, _ := json.Marshal(a)
+	bb, _ := json.Marshal(b)
+	if string(aa) == string(bb) {
+		Errorf(context.Background(), "must not equal, got: %s, not expected: %s", string(aa), string(bb))
+	}
 }
