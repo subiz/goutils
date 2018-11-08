@@ -3,11 +3,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:043f4069cbb8140d59d31d0aa3e7b20a272879cf2af69abb35dfd23836f23dfb"
+  digest = "1:6812b50e58c7ac30b95bd96e74263e275960e03440c3f5b608b0b8e9fac35be2"
   name = "git.subiz.net/goredis"
   packages = ["."]
   pruneopts = "UT"
-  revision = "0b69ea0bd8a141c7bfea6fbaa7c3ad426f334146"
+  revision = "e895b4e538271505a32e6bbd53a946c0e13abb23"
 
 [[projects]]
   branch = "master"
@@ -15,7 +15,7 @@
   name = "git.subiz.net/goutils"
   packages = ["map"]
   pruneopts = "UT"
-  revision = "2be670243ae613a392238a343bbf69c13e9f72e4"
+  revision = "05a15f86d31a3662b7cd903460d21eb22dbb5a8b"
 
 [[projects]]
   branch = "master"
@@ -48,7 +48,7 @@
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   pruneopts = "UT"
-  revision = "0382e7636b97e3f60fb188fef87a8d2c42c51ba9"
+  revision = "75dceb112b174be156fa9952e66d3e99945572b4"
 
 [[projects]]
   branch = "master"
@@ -70,15 +70,15 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:f43f7e80e273179b98af510dd453d184c7860920d6f9aa5c89e06aed0494a7a8"
+  digest = "1:735956b5e94182229dfbdc5b401d7a71f20f54f1259dbc2969ec2b56bfbb34f2"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
     "prometheus/internal",
   ]
   pruneopts = "UT"
-  revision = "1cafe34db7fdec6022e17e00e1c1ea501022f3e4"
-  version = "v0.9.0"
+  revision = "abad2d1bd44235a26707c172eab6bca5bf2dbad3"
+  version = "v0.9.1"
 
 [[projects]]
   branch = "master"
