@@ -98,6 +98,7 @@ func (c *Cache) GetGlobal(key string) ([]byte, error) {
 	}
 	// store back
 	c.Lock()
+	c.lc.Add(key, byts)
 	c.expires[key] = time.Now()
 	c.Unlock()
 	return byts, c.rclient.Set(c.prefix+key, c.prefix+key, byts, 10*c.exp) // ignore err
