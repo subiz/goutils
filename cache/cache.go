@@ -101,7 +101,8 @@ func (c *Cache) GetGlobal(key string) ([]byte, error) {
 	c.lc.Add(key, byts)
 	c.expires[key] = time.Now()
 	c.Unlock()
-	return byts, c.rclient.Set(c.prefix+key, c.prefix+key, byts, 10*c.exp) // ignore err
+	c.rclient.Set(c.prefix+key, c.prefix+key, byts, 10*c.exp) // ignore err
+	return byts, err
 }
 
 // Get loads data from local cache, if miss, loads from redis, if also miss,
