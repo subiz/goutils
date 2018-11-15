@@ -39,3 +39,11 @@ func PI64(i int) *int64 {
 	i64 := int64(i)
 	return &i64
 }
+
+func F32(f float32) *float32 {
+	return &f
+}
+
+func F64(f float64) *float64 {
+	return &f
+}
