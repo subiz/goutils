@@ -7,7 +7,6 @@ import (
 
 	"git.subiz.net/errors"
 	co "git.subiz.net/header/common"
-	"git.subiz.net/header/lang"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -76,7 +75,12 @@ func unaryinterceptorhandler(ctx context.Context, req interface{}, _ *grpc.Unary
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				err = errors.Default(r)
+				e, ok := r.(error)
+				if ok {
+					err = errors.Wrap(e, 500, errors.E_unknown)
+				}
+
+				err = errors.New(500, errors.E_unknown, fmt.Sprintf("%v", e))
 			}
 		}()
 		ret, err = handler(ctx, req)
@@ -84,7 +88,7 @@ func unaryinterceptorhandler(ctx context.Context, req interface{}, _ *grpc.Unary
 	if err != nil {
 		e, ok := err.(*errors.Error)
 		if !ok {
-			e = errors.Wrap(err, 500, lang.T_internal_error)
+			e = errors.Wrap(err, 500, errors.E_unknown)
 		}
 		md := metadata.Pairs(PanicKey, e.Error())
 		grpc.SendHeader(ctx, md)
@@ -102,5 +106,5 @@ func GetPanic(md metadata.MD) *errors.Error {
 	if errs == "" {
 		return nil
 	}
-	return errors.FromError(errs)
+	return errors.FromString(errs)
 }
