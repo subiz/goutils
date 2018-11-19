@@ -27,7 +27,15 @@
 
 [[constraint]]
   branch = "master"
+  name = "git.subiz.net/goredis"
+
+[[constraint]]
   name = "github.com/hashicorp/golang-lru"
+  version = "0.5.0"
+
+[[constraint]]
+  name = "github.com/prometheus/client_golang"
+  version = "0.9.1"
 
 [prune]
   go-tests = true

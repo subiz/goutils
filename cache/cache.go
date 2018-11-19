@@ -66,10 +66,9 @@ func New(prefix string, localsize int, redishosts []string, redispassword string
 		expires: make(map[string]time.Time),
 		exp:     expire,
 		loadf:   loadf,
-		rclient: &goredis.Client{},
 	}
-	c.rclient.Connect(redishosts, redispassword)
 	var err error
+	c.rclient, err = goredis.New(redishosts, redispassword)
 	c.lc, err = lru.New(localsize)
 	if err != nil {
 		panic(err)

@@ -3,11 +3,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6812b50e58c7ac30b95bd96e74263e275960e03440c3f5b608b0b8e9fac35be2"
+  digest = "1:602db34ab2d20edeb1871a2a3839ac97c4b83eb6d0d8e211969ce5e0641dfc2a"
+  name = "git.subiz.net/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2d810a04706271e0ad9d4381ecddc1e1d2e5025f"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a40ea1a4eaba53b0e5e2d9f069bd8e4db38a397fbf27c2129c906871fd0a232c"
   name = "git.subiz.net/goredis"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e895b4e538271505a32e6bbd53a946c0e13abb23"
+  revision = "0036c0a3d3ca69c15e491f1b657bf8f948afc51a"
 
 [[projects]]
   branch = "master"
@@ -15,7 +23,7 @@
   name = "git.subiz.net/goutils"
   packages = ["map"]
   pruneopts = "UT"
-  revision = "05a15f86d31a3662b7cd903460d21eb22dbb5a8b"
+  revision = "55cbdec4906a8b64d5e67ed8a96a3347d5a040f9"
 
 [[projects]]
   branch = "master"
@@ -43,15 +51,14 @@
   version = "v6.14.2"
 
 [[projects]]
-  branch = "master"
-  digest = "1:8715cd47fd0fa392884aab36611f25631b1540e7a21c5df171af3e397b42f302"
+  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   pruneopts = "UT"
-  revision = "75dceb112b174be156fa9952e66d3e99945572b4"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
 
 [[projects]]
-  branch = "master"
   digest = "1:8ec8d88c248041a6df5f6574b87bc00e7e0b493881dad2e7ef47b11dc69093b5"
   name = "github.com/hashicorp/golang-lru"
   packages = [
@@ -60,6 +67,7 @@
   ]
   pruneopts = "UT"
   revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
+  version = "v0.5.0"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -98,7 +106,7 @@
     "model",
   ]
   pruneopts = "UT"
-  revision = "7e9e6cabbd393fc208072eedef99188d0ce788b6"
+  revision = "1f2c4f3cd6db5fd6f68f36af6b6d5d936fd93c4e"
 
 [[projects]]
   branch = "master"
