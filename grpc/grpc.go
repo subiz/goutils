@@ -88,7 +88,7 @@ func unaryinterceptorhandler(ctx context.Context, req interface{}, _ *grpc.Unary
 	if err != nil {
 		e, ok := err.(*errors.Error)
 		if !ok {
-			e = errors.Wrap(err, 500, errors.E_unknown)
+			e, _ = errors.Wrap(err, 500, errors.E_unknown).(*errors.Error)
 		}
 		md := metadata.Pairs(PanicKey, e.Error())
 		grpc.SendHeader(ctx, md)
