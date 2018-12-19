@@ -1,13 +1,13 @@
 package grpc
 
 import (
-	b64 "encoding/base64"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
-	"git.subiz.net/errors"
-	co "git.subiz.net/header/common"
 	"github.com/golang/protobuf/proto"
+	"github.com/subiz/errors"
+	co "github.com/subiz/header/common"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -15,33 +15,18 @@ import (
 
 // CredKey is key which credential is putted in medatada.MD
 const (
-	CredKey      = "credential"
-	CtxKey       = "pcontext"
-	ErrKey       = "error"
-	RedirectKey  = "isredirect"
-	RequestIDKey = "requestid"
-	PanicKey     = "panic"
+	CredKey  = "credential"
+	CtxKey   = "pcontext"
+	ErrKey   = "error"
+	PanicKey = "panic"
 )
-
-func AddRequestIDCtx(ctx context.Context, requestid string) context.Context {
-	md, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		md, ok = metadata.FromOutgoingContext(ctx)
-		if !ok {
-			md = metadata.MD{}
-		}
-	}
-
-	md = metadata.Join(metadata.Pairs(RequestIDKey, requestid), md)
-	return metadata.NewOutgoingContext(ctx, md)
-}
 
 func ToGrpcCtx(pctx *co.Context) context.Context {
 	data, err := proto.Marshal(pctx)
 	if err != nil {
 		panic(fmt.Sprintf("unable to marshal cred, %v", pctx))
 	}
-	cred64 := b64.StdEncoding.EncodeToString(data)
+	cred64 := base64.StdEncoding.EncodeToString(data)
 	return metadata.NewOutgoingContext(
 		context.Background(),
 		metadata.Pairs(CtxKey, cred64))
@@ -59,7 +44,7 @@ func FromGrpcCtx(ctx context.Context) *co.Context {
 	if cred64 == "" {
 		return nil
 	}
-	data, err := b64.StdEncoding.DecodeString(cred64)
+	data, err := base64.StdEncoding.DecodeString(cred64)
 	if err != nil {
 		panic(fmt.Sprintf("%v, %s: %s", err, "wrong base64 ", cred64))
 	}
