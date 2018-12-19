@@ -11,15 +11,15 @@ import (
 )
 
 var (
-	ErrUrlIsEmpty  = errors.New("url is empty")
-	ErrNot200      = errors.New("not 200")
+	ErrUrlIsEmpty = errors.New("url is empty")
+	ErrNot200     = errors.New("not 200")
 )
 
 // Config used to specific detailed configurations when making http request
 type Config struct {
 	// map contains HTTP header entries to be injected when make http request
 	// contains pair of (header key, header value)
-	Header  map[string]string
+	Header map[string]string
 
 	// maximum amount of time wait for the request to complete, included retry time
 	// each call to server only wait for 60 secs
@@ -48,7 +48,7 @@ func Request(method, url string, body []byte, config *Config) ([]byte, error) {
 			timeout = config.Timeout
 		}
 	}
-	var out []byte // raw response body
+	var out []byte     // raw response body
 	var statuscode int // returned status code, -1 indicates internal error
 
 	// create backoff utility to do retry
@@ -87,7 +87,7 @@ func Request(method, url string, body []byte, config *Config) ([]byte, error) {
 // sendHTTP make an http request to http endpoint
 // method, url must not be empty
 // this method returns (response body in []byte, status code, and an error)
-func sendHTTP(method, url string, header M, body []byte) ([]byte, int, error) {
+func sendHTTP(method, url string, header map[string]string, body []byte) ([]byte, int, error) {
 	req, err := http.NewRequest(method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, 0, err
