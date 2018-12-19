@@ -81,6 +81,8 @@ var tzMap = &sync.Map{}
 // examples:
 //   TimezoneToUTC("Asia/Ho_Chi_Minh") -> +07:00
 // This function use tzMap global variable as cache
+// CAUTION: in order to run, OS must have tzdata package (use 'apk add tzdata'
+// to install)
 func TimezoneToUTC(tzName string) string {
 	// predefined cache value, for extreme fast lookup
 	switch tzName {
