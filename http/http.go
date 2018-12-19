@@ -10,8 +10,6 @@ import (
 	"github.com/cenkalti/backoff"
 )
 
-type M map[string]string
-
 var (
 	ErrUrlIsEmpty  = errors.New("url is empty")
 	ErrNot200      = errors.New("not 200")

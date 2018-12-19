@@ -3,7 +3,7 @@ package file
 import (
 	"cloud.google.com/go/storage"
 	"context"
-	"git.subiz.net/errors"
+	"github.com/subiz/errors"
 	"google.golang.org/api/option"
 	"io"
 )
