@@ -27,15 +27,15 @@
 
 [[constraint]]
   branch = "master"
-  name = "git.subiz.net/goutils"
+  name = "github.com/subiz/goutils"
 
 [[constraint]]
   branch = "master"
-  name = "git.subiz.net/header"
+  name = "github.com/subiz/header"
 
 [[constraint]]
   branch = "master"
-  name = "git.subiz.net/kafka"
+  name = "github.com/subiz/kafka"
 
 [prune]
   go-tests = true

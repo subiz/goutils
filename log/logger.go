@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"git.subiz.net/goutils/map"
-	compb "git.subiz.net/header/common"
-	"git.subiz.net/header/logan"
-	"git.subiz.net/kafka"
+	"github.com/subiz/goutils/map"
+	compb "github.com/subiz/header/common"
+	"github.com/subiz/header/logan"
+	"github.com/subiz/kafka"
 )
 
 type key int
