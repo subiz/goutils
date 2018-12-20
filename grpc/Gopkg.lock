@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  branch = "master"
-  digest = "1:4e291fdab3db196009f48c120a539f3029d06f33d8e0aec586de460a57c036a7"
-  name = "git.subiz.net/header"
-  packages = ["auth"]
-  pruneopts = "UT"
-  revision = "25d854f0a2373a3c7e822d0f24414ddbeb90f0cb"
-
-[[projects]]
   digest = "1:4c0989ca0bcd10799064318923b9bc2db6b4d6338dd75f3f2d86c3511aaaf5cf"
   name = "github.com/golang/protobuf"
   packages = [
@@ -25,12 +17,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e6d91bf5631caea3c36d6cb3fa058e13d8df0b9d2787efbb9d78bbcf4dbe5fd7"
+  digest = "1:aa3d8d42865c42626b5c1add193692d045b3188b1479f0a0a88690d21fe20083"
   name = "github.com/mailru/easyjson"
   packages = [
     ".",
     "buffer",
-    "gen",
     "jlexer",
     "jwriter",
   ]
@@ -39,19 +30,22 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:79a1c0b48d241cb4509932e647ad50f97a4f4a603e54fc9f13acb5f293b2eaa7"
+  digest = "1:9bcd33310ae56ff2eefd9cda86e4db75f54f1c5e9469b836529f1dc04c282cbc"
   name = "github.com/subiz/errors"
   packages = ["."]
   pruneopts = "UT"
-  revision = "9317be24324757d8c0ee9104ca51c055b9eaea36"
+  revision = "c89ddc5fe829b83a2a150c02ccd6e6dbd681ef8c"
 
 [[projects]]
   branch = "master"
-  digest = "1:085e9d085d358f4cd4bfe8ea14eb305fe4e77cf0b0006e54523872f5840b0683"
+  digest = "1:27df25d1a60dc29a5322b43d32f5e85551433c9e5992969227750b8a14f87900"
   name = "github.com/subiz/header"
-  packages = ["common"]
+  packages = [
+    "auth",
+    "common",
+  ]
   pruneopts = "UT"
-  revision = "25d854f0a2373a3c7e822d0f24414ddbeb90f0cb"
+  revision = "fe31ca7c565e496899835b4a4d66865650003897"
 
 [[projects]]
   branch = "master"
@@ -106,7 +100,7 @@
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = "UT"
-  revision = "67d6565462c5a0d99b88193d59fefa10ca7e3010"
+  revision = "5a97ab628bfb2f65f6befec18f4bc7bc7f382b77"
 
 [[projects]]
   digest = "1:9edd250a3c46675d0679d87540b30c9ed253b19bd1fd1af08f4f5fb3c79fc487"
