@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  branch = "master"
-  digest = "1:67d6873f32306ab475115fbe001a86908aedabfdff9888ecdeaba39f104720b0"
-  name = "git.subiz.net/header"
-  packages = ["auth"]
-  pruneopts = "UT"
-  revision = "eb842f5bc25f7a9f3152e2cf6f55060fd9b4394e"
-
-[[projects]]
   digest = "1:c99bd4548f502371b98c77534239a514c9a1e715d468af3c108db06186aa692a"
   name = "github.com/DataDog/zstd"
   packages = ["."]
@@ -89,12 +81,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e6d91bf5631caea3c36d6cb3fa058e13d8df0b9d2787efbb9d78bbcf4dbe5fd7"
+  digest = "1:aa3d8d42865c42626b5c1add193692d045b3188b1479f0a0a88690d21fe20083"
   name = "github.com/mailru/easyjson"
   packages = [
     ".",
     "buffer",
-    "gen",
     "jlexer",
     "jwriter",
   ]
@@ -122,11 +113,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:79a1c0b48d241cb4509932e647ad50f97a4f4a603e54fc9f13acb5f293b2eaa7"
+  digest = "1:9bcd33310ae56ff2eefd9cda86e4db75f54f1c5e9469b836529f1dc04c282cbc"
   name = "github.com/subiz/errors"
   packages = ["."]
   pruneopts = "UT"
-  revision = "9317be24324757d8c0ee9104ca51c055b9eaea36"
+  revision = "c89ddc5fe829b83a2a150c02ccd6e6dbd681ef8c"
 
 [[projects]]
   branch = "master"
@@ -145,11 +136,11 @@
     "map",
   ]
   pruneopts = "UT"
-  revision = "2695431d0ed2c6ef88d78ef26d84277874d3df10"
+  revision = "71a10409af8831280032ea04687775e91a8fa2c4"
 
 [[projects]]
   branch = "master"
-  digest = "1:af72ea62b4247090099a30b031f29b251f586cadc2c1286690ee0b7f85e72833"
+  digest = "1:b40a35a580bc1802f8e2fc8158c1e9b31aad718c671823ec175e4ed29fa7af58"
   name = "github.com/subiz/header"
   packages = [
     "auth",
@@ -157,7 +148,7 @@
     "logan",
   ]
   pruneopts = "UT"
-  revision = "eb842f5bc25f7a9f3152e2cf6f55060fd9b4394e"
+  revision = "fe31ca7c565e496899835b4a4d66865650003897"
 
 [[projects]]
   branch = "master"
@@ -228,7 +219,7 @@
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = "UT"
-  revision = "67d6565462c5a0d99b88193d59fefa10ca7e3010"
+  revision = "5a97ab628bfb2f65f6befec18f4bc7bc7f382b77"
 
 [[projects]]
   digest = "1:9edd250a3c46675d0679d87540b30c9ed253b19bd1fd1af08f4f5fb3c79fc487"
