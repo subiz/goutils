@@ -1,9 +1,9 @@
 package cache
 
 import (
-	"git.subiz.net/goredis"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/subiz/goredis"
 	"sync"
 	"time"
 )
