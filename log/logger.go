@@ -74,6 +74,10 @@ func (l *Logger) Log(persist bool, ctx context.Context, level logan.Level, v ...
 		message = []byte(fmt.Sprintf("%v", t))
 	}
 
+	if err, ok := t.(error); ok {
+		message = []byte(err.Error())
+	}
+
 	echo(t)
 
 	if l.pub == nil {
