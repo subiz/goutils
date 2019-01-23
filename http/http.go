@@ -27,15 +27,26 @@ type Config struct {
 }
 
 // g_fhc used to send http request
-var g_fhc = &http.Client{Timeout: 60 * time.Second}
+var g_fhc = NewClient()
 
-// Request send http request to url, it retries automatically on 429 (rate limit) or
-// 5xx error
-// By default, this method will block no longer than 5 minutes, user can change the
-// timeout in config paramater. The method forced to return error when timeout.
-// If success, this method returns raw response body, an ErrNot200 is returned if
-// the server don't return 2xx code
-func Request(method, url string, body []byte, config *Config) ([]byte, error) {
+// Client is used to make http request. Its just default http client wrapper
+// which provide simpler syntax and exponential backoff retries.
+type Client struct {
+	HttpClient *http.Client
+}
+
+func NewClient() *Client {
+	return &Client{HttpClient: &http.Client{Timeout: 60 * time.Second}}
+}
+
+// Request sends http request to url, it retries automatically on
+// 429 (rate limit) or 5xx error
+// By default, this method will block no longer than 5 minutes, user can change
+// the timeout in config paramater. The method forced to return error when
+// timeout.
+// If success, this method returns raw response body, an ErrNot200 is returned
+// if the server don't return 2xx code.
+func (me *Client) Request(method, url string, body []byte, config *Config) ([]byte, error) {
 	if url == "" {
 		return nil, ErrUrlIsEmpty
 	}
@@ -59,7 +70,7 @@ func Request(method, url string, body []byte, config *Config) ([]byte, error) {
 
 	err := backoff.Retry(func() error {
 		var err error
-		out, statuscode, err = sendHTTP(method, url, header, body)
+		out, statuscode, err = sendHTTP(me.HttpClient, method, url, header, body)
 		if err != nil {
 			// something wrong with the parameters, return nil since retry won't help
 			out = []byte(err.Error())
@@ -87,7 +98,7 @@ func Request(method, url string, body []byte, config *Config) ([]byte, error) {
 // sendHTTP make an http request to http endpoint
 // method, url must not be empty
 // this method returns (response body in []byte, status code, and an error)
-func sendHTTP(method, url string, header map[string]string, body []byte) ([]byte, int, error) {
+func sendHTTP(client *http.Client, method, url string, header map[string]string, body []byte) ([]byte, int, error) {
 	req, err := http.NewRequest(method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, 0, err
@@ -97,19 +108,20 @@ func sendHTTP(method, url string, header map[string]string, body []byte) ([]byte
 		req.Header.Set(k, v)
 	}
 
-	req.Header.Set("User-Agent", "Subiz-Gun/4.014")
+	req.Header.Set("User-Agent", "Subiz-Gun/4.015")
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
 
-	res, err := g_fhc.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, 0, err
 	}
+	defer res.Body.Close()
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, 0, err
 	}
-	return b, res.StatusCode, res.Body.Close()
+	return b, res.StatusCode, nil
 }
 
 // Is2xx return whether code is in range of (200; 299)
@@ -120,3 +132,14 @@ func Is4xx(code int) bool { return 399 < code && code < 500 }
 
 // Is5xx tells whether code is in range of (400; 499)
 func Is5xx(code int) bool { return 499 < code && code < 600 }
+
+// Request use default client to sends http request to url, it retries
+// automatically on 429 (rate limit) or  5xx error
+// By default, this method will block no longer than 5 minutes, user can change
+// the timeout in config paramater. The method forced to return error when
+// timeout.
+// If success, this method returns raw response body, an ErrNot200 is returned if
+// the server don't return 2xx code.
+func Request(method, url string, body []byte, config *Config) ([]byte, error) {
+	return g_fhc.Request(method, url, body, config)
+}
