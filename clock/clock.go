@@ -1,8 +1,10 @@
 package clock
 
 import (
-	"sync"
+	"fmt"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -123,4 +125,22 @@ func TimezoneToUTC(tzName string) string {
 	tz := sign + hh + ":" + mm
 	tzMap.Store(tzName, tz)
 	return tz
+}
+
+// tz: 07:00
+func ConvertTimezone(t time.Time, tz string) (year, mon, day, hour, min int, err error) {
+	tz = strings.TrimSpace(tz)
+	tzsplit := strings.Split(tz, ":")
+	if len(tzsplit) != 2 {
+		return 0, 0, 0, 0, 0, fmt.Errorf("invalid timezone %s", tz)
+	}
+
+	tzhour, _ := strconv.Atoi(tzsplit[0])
+	tzmin, _ := strconv.Atoi(tzsplit[1])
+	if tz[0] == '-' {
+		tzmin = -tzmin
+	}
+
+	t = t.UTC().Add(time.Hour*time.Duration(tzhour) + time.Minute*time.Duration(tzmin))
+	return t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Minute(), nil
 }
