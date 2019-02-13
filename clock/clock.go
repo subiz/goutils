@@ -128,11 +128,11 @@ func TimezoneToUTC(tzName string) string {
 }
 
 // tz: 07:00
-func ConvertTimezone(t time.Time, tz string) (year, mon, day, hour, min int, err error) {
+func ConvertTimezone(t time.Time, tz string) (year, mon, day, hour, min int, weekday string, err error) {
 	tz = strings.TrimSpace(tz)
 	tzsplit := strings.Split(tz, ":")
 	if len(tzsplit) != 2 {
-		return 0, 0, 0, 0, 0, fmt.Errorf("invalid timezone %s", tz)
+		return 0, 0, 0, 0, 0, "", fmt.Errorf("invalid timezone %s", tz)
 	}
 
 	tzhour, _ := strconv.Atoi(tzsplit[0])
@@ -142,5 +142,5 @@ func ConvertTimezone(t time.Time, tz string) (year, mon, day, hour, min int, err
 	}
 
 	t = t.UTC().Add(time.Hour*time.Duration(tzhour) + time.Minute*time.Duration(tzmin))
-	return t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Minute(), nil
+	return t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Minute(), t.Weekday().String(), nil
 }

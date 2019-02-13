@@ -31,7 +31,7 @@ func TestConvertTimezone(t *testing.T) {
 			t.Fatalf("%s: %v", tc.intime, err)
 
 		}
-		year, mon, day, hour, min, err := ConvertTimezone(tim, tc.tz)
+		year, mon, day, hour, min, _, err := ConvertTimezone(tim, tc.tz)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.intime, err)
 		}
