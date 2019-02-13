@@ -31,6 +31,17 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:9ef9a408d7cebb9a4781de6bc6866d72740fe98ab228d7e2423fa6e193dc1e88"
+  name = "github.com/subiz/goutils"
+  packages = [
+    "clock",
+    "conv",
+  ]
+  pruneopts = "UT"
+  revision = "596c02787b3831815cba58f58ce82f3d1c72be8f"
+
+[[projects]]
+  branch = "master"
   digest = "1:3a759ee250e9b114c68d89b12889f53611c3843cd53565bdf831e4bc61f641e6"
   name = "github.com/subiz/header"
   packages = [
@@ -60,11 +71,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8b466798e96432c23185ca32826702885299f94eb644c9a8dedb79771dff383a"
+  digest = "1:fc92ba10680475f946af24eb60a082629893788be2ea2dcbe14c0edd2d6a91f3"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "3b5209105503162ded1863c307ac66fec31120dd"
+  revision = "cea5d2f6b40379e592249b257bdaa55fae54017d"
 
 [[projects]]
   digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"
@@ -140,6 +151,10 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  input-imports = ["github.com/subiz/header/account"]
+  input-imports = [
+    "github.com/subiz/goutils/clock",
+    "github.com/subiz/goutils/conv",
+    "github.com/subiz/header/account",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
