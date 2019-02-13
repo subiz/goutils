@@ -2,63 +2,68 @@ package business_hours
 
 import (
 	"fmt"
+	"github.com/subiz/goutils/clock"
 	pb "github.com/subiz/header/account"
 	"strconv"
 	"strings"
 	"time"
 )
 
-type WorkingTime int64
-
-func (t WorkingTime) UnixNano() int64 {
-	return int64(time.Duration(t) / time.Hour)
-}
-
-type BusinessHours struct {
-	data *pb.BusinessHours
-}
-
-func NewBusinessHours(bh *pb.BusinessHours) *BusinessHours {
-	return &BusinessHours{data: bh}
-}
-
-func (bh *BusinessHours) DuringBusinessHour(date time.Time) bool {
-	if bh.IsHoliday(date) {
-		return false
+func DuringBusinessHour(bh *pb.BusinessHours, date time.Time, tz string) (bool, error) {
+	isholiday, err := IsHoliday(bh, date, tz)
+	if err != nil {
+		return false, err
 	}
-	if len(bh.data.GetWorkingDays()) == 0 {
-		return true
+	if isholiday {
+		return false, nil
 	}
-	for _, wd := range bh.data.GetWorkingDays() {
-		if wd.GetWeekday() == date.Weekday().String() {
-			start, _ := parseTime(wd.GetStartTime())
-			end, _ := parseTime(wd.GetEndTime())
-			if date.UnixNano() >= start.UnixNano() && date.UnixNano() <= end.UnixNano() {
-				return true
+
+	if len(bh.GetWorkingDays()) == 0 {
+		return true, nil
+	}
+
+	_, _, _, h, m, weekday, err := clock.ConvertTimezone(date, tz)
+	if err != nil {
+		return false, err
+	}
+	currentmin := h*60 + m
+
+	for _, wd := range bh.GetWorkingDays() {
+		if wd.GetWeekday() == weekday {
+			start, err := toMinute(wd.GetStartTime())
+			if err != nil {
+				return false, err
+			}
+			end, err := toMinute(wd.GetEndTime())
+			if err != nil {
+				return false, err
+			}
+
+			if start <= currentmin || currentmin <= end {
+				return true, nil
 			}
 		}
 	}
-	return false
+	return false, nil
 }
 
-func (bh *BusinessHours) IsHoliday(date time.Time) bool {
-	for _, h := range bh.data.GetHolidays() {
-		if h.GetWeekday() == date.Weekday().String() {
-			return true
-		}
-		if h.GetDay() == int32(date.Day()) && h.GetMonth() == int32(date.Month()) {
-			if h.GetYear() == 0 {
-				return true
-			} else if h.GetYear() == int32(date.Year()) {
-				return true
-			}
+// IsHoliday tells where ther date (within timezone tz) is in holiday list
+func IsHoliday(bh *pb.BusinessHours, date time.Time, tz string) (bool, error) {
+	y, m, d, _, _, _, err := clock.ConvertTimezone(date, tz)
+	if err != nil {
+		return false, err
+	}
+	for _, h := range bh.GetHolidays() {
+		if int32(y) == h.GetYear() && int32(m) == h.GetMonth() &&
+			int32(d) == h.GetDay() {
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
-// parseTime from string 10:25 convert to WorkingTime (int64)
-func parseTime(t string) (WorkingTime, error) {
+// toMinute from string 10:25 convert to number of minutes: 675
+func toMinute(t string) (int, error) {
 	var mins, hours int
 	var err error
 
@@ -87,5 +92,5 @@ func parseTime(t string) (WorkingTime, error) {
 		return 0, fmt.Errorf("invalid time: %s", t)
 	}
 
-	return WorkingTime(time.Duration(hours)*time.Hour + time.Duration(mins)*time.Minute), nil
+	return hours*60 + mins, nil
 }
