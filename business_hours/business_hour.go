@@ -39,7 +39,7 @@ func DuringBusinessHour(bh *pb.BusinessHours, date time.Time, tz string) (bool, 
 				return false, err
 			}
 
-			if start <= currentmin || currentmin <= end {
+			if start <= currentmin && currentmin <= end {
 				return true, nil
 			}
 		}

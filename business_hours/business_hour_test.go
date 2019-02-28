@@ -92,6 +92,13 @@ func TestDuringBusinessHour(t *testing.T) {
 				EndTime:   conv.S("23:30"),
 			}}, "2018-08-21T23:04:00Z", "+07:00", false, // Tuesday
 		},
+		{
+			nil, []*pb.BusinessHours_WorkingDay{{
+				Weekday:   conv.S("Thursday"),
+				StartTime: conv.S("10:30"),
+				EndTime:   conv.S("11:00"),
+			}}, "2019-02-28T04:30:39Z", "+07:00", false, // Thursday
+		},
 	}
 
 	for _, tc := range tcs {
