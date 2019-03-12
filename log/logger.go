@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/subiz/goutils/map"
+	"github.com/subiz/header"
 	compb "github.com/subiz/header/common"
 	"github.com/subiz/header/logan"
 	"github.com/subiz/kafka"
@@ -97,8 +98,8 @@ func (l *Logger) Log(persist bool, ctx context.Context, level logan.Level, v ...
 		Debug:       &logan.Debug{StackTrace: debug.Stack(), Hostname: l.hostname},
 		ServiceName: l.service,
 	}
-	log.Ctx = &compb.Context{Topic: logan.Event_LogLogRequested.String()}
-	l.pub.PublishAsync(logan.Event_LogRequested.String(), log, -1, GetTrace(ctx))
+	log.Ctx = &compb.Context{Topic: header.E_LogLogRequested.String()}
+	l.pub.PublishAsync(header.E_LogRequested.String(), log, -1, GetTrace(ctx))
 }
 
 func (l *Logger) log(persist bool, level logan.Level, v ...interface{}) {
