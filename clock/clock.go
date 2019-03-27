@@ -8,58 +8,67 @@ import (
 	"time"
 )
 
-func GetMonthFromNano(created int64) int64 {
-	return ToNano(created) / int64(time.Hour) / 24 / 30
-}
-
 func GetHourOfDay(t int64) int {
-	return time.Unix(0, ToNano(t)).Hour()
+	return time.Unix(0, UnixNano(t)).Hour()
 }
 
-func ToDay(t int64) int64 {
-	return ToNano(t) / 24 / int64(time.Hour)
-}
+// UnixSec returns number of years that have elapsed since 00:00:00 1/1/1970 UTC
+// to current time t.
+// Parameter t could be nanosecond, millisecond, microsecond or second.
+func UnixYear(t int64) int64 { return UnixNano(t) / 24 / int64(time.Hour) / 365 }
 
-func ToMin(t int64) int64 {
-	return ToNano(t) / int64(time.Minute)
-}
+// UnixSec returns number of months that have elapsed since 00:00:00 1/1/1970 UTC
+// to current time t.
+// Parameter t could be nanosecond, millisecond, microsecond or second.
+func UnixMonth(t int64) int64 { return UnixNano(t) / 24 / int64(time.Hour) / 30 }
 
-func ToSec(t int64) int64 {
-	return ToNano(t) / int64(time.Second)
-}
+// UnixSec returns number of days that have elapsed since 00:00:00 1/1/1970 UTC
+// to current time t.
+// Parameter t could be nanosecond, millisecond, microsecond or second.
+func UnixDay(t int64) int64 { return UnixNano(t) / 24 / int64(time.Hour) }
 
-func ToHour(t int64) int64 {
-	return ToNano(t) / int64(time.Hour)
-}
+// UnixSec returns number of minutes that have elapsed since 00:00:00 1/1/1970 UTC
+// to current time t.
+// Parameter t could be nanosecond, millisecond, microsecond or second.
+func UnixMin(t int64) int64 { return UnixNano(t) / int64(time.Minute) }
+
+// UnixSec returns number of seconds that have elapsed since 00:00:00 1/1/1970 UTC
+// to current time t.
+// Parameter t could be nanosecond, millisecond, microsecond or second.
+func UnixSec(t int64) int64 { return UnixNano(t) / int64(time.Second) }
+
+// UnixHour returns number of hours that have elapsed since 00:00:00 1/1/1970 UTC
+// to current time t.
+// Parameter t could be nanosecond, millisecond, microsecond or second.
+func UnixHour(t int64) int64 { return UnixNano(t) / int64(time.Hour) }
 
 // IsNano tells whether an integer t is nano seconds
 func IsNano(t int64) bool {
 	return t > 1e+18
 }
 
-func GetThisYear() int64 {
-	return GetMonthFromNano(time.Now().UnixNano()) / 12
-}
-
-func Now() time.Time {
-	return time.Now()
+// Midnight returns number of nano seconds elapsed since 0h0m0s 1/1/1970 UTC to
+// the midnight of the current day in timezone tzoffset
+// E.g: Midnight("+07:00"), Midnight("00:00")
+func Midnight(tzoffset string) int64 {
+	h, _, _ := SplitTzOffset(tzoffset)
+	year, month, day := time.Now().UTC().Date()
+	curmidnight := time.Date(year, month, day, 23, 59, 59, 0, time.UTC)
+	curmidnight_inzone := curmidnight.Add(-time.Duration(h) * time.Hour)
+	return curmidnight_inzone.UnixNano()
 }
 
 const OneMonth = 31 * 24 * time.Hour
 
 // ToMili converts t (nanosecond, millisecond, microsecond or second) into
 // millisecond integer
-func ToMili(t int64) int64 {
-	return ToNano(t) / 1e+6
-}
+func UnixMili(t int64) int64 { return UnixNano(t) / 1e+6 }
 
-func RoundSecNano(t int64) int64 {
-	return ToSec(t) * int64(time.Second)
-}
+func RoundSecNano(t int64) int64 { return UnixSec(t) * int64(time.Second) }
 
-// ToNano convert t (nanosecond, millisecond, microsecond or second) into
+// UnixNano convert t (nanosecond, millisecond, microsecond or second) into
 // nanosecond integer
-func ToNano(t int64) int64 {
+func UnixNano(t int64) int64 {
 	if t > 1e+18 { // nanoseconds
 		return t
 	}
@@ -149,16 +158,18 @@ func ConvertTimezone(t time.Time, tz string) (year, mon, day, hour, min int, wee
 //  SplitTzOffset("-07:30") => -7, -30
 //  SplitTzOffset("-00:30") => -7, -30
 func SplitTzOffset(offset string) (int, int, error) {
-	offset = strings.TrimSpace(offset)
-	if len(offset) != 6 {
-		return 0, 0, fmt.Errorf("invalid timezone offset %s", offset)
+	if offset == "0" || offset == "00:00" || offset == "Z" {
+		return 0, 0, nil
 	}
-
+	offset = strings.TrimSpace(offset)
 	sign := 1
 	if offset[0] == '-' {
 		sign = -1
 	} else if offset[0] == '+' {
 	} else {
+		offset = "+" + offset
+	}
+	if len(offset) != 6 {
 		return 0, 0, fmt.Errorf("invalid timezone offset %s", offset)
 	}
 
