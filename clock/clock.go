@@ -158,10 +158,10 @@ func ConvertTimezone(t time.Time, tz string) (year, mon, day, hour, min int, wee
 //  SplitTzOffset("-07:30") => -7, -30
 //  SplitTzOffset("-00:30") => -7, -30
 func SplitTzOffset(offset string) (int, int, error) {
-	if offset == "0" || offset == "00:00" || offset == "Z" {
+	offset = strings.TrimSpace(offset)
+	if offset == "" || offset == "0" || offset == "00:00" || offset == "Z" {
 		return 0, 0, nil
 	}
-	offset = strings.TrimSpace(offset)
 	sign := 1
 	if offset[0] == '-' {
 		sign = -1
