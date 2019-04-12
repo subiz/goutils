@@ -98,7 +98,7 @@ func (l *Logger) Log(persist bool, ctx context.Context, level logan.Level, v ...
 		Debug:       &logan.Debug{StackTrace: debug.Stack(), Hostname: l.hostname},
 		ServiceName: l.service,
 	}
-	log.Ctx = &compb.Context{Topic: header.E_LogLogRequested.String()}
+	log.Ctx = &compb.Context{SubTopic: header.E_LogLogRequested.String()}
 	l.pub.PublishAsync(header.E_LogRequested.String(), log, -1, GetTrace(ctx))
 }
 
