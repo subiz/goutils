@@ -1,7 +1,6 @@
 package business_hours
 
 import (
-	"github.com/subiz/goutils/conv"
 	pb "github.com/subiz/header/account"
 	"testing"
 	"time"
@@ -16,25 +15,25 @@ func TestIsHoliday(t *testing.T) {
 	}{
 		{
 			[]*pb.BusinessHours_Holiday{{
-				Year:  conv.PI32(2018),
-				Month: conv.PI32(8),
-				Day:   conv.PI32(21),
+				Year:   PI32(2018),
+				Month:  PI32(8),
+				Day:    PI32(21),
 			}}, "2018-08-21T15:04:00Z", "+07:00", true,
 		}, {
 			[]*pb.BusinessHours_Holiday{{
-				Year:  conv.PI32(2018),
-				Month: conv.PI32(8),
-				Day:   conv.PI32(21),
+				Year:   PI32(2018),
+				Month:  PI32(8),
+				Day:    PI32(21),
 			}}, "2018-08-21T23:04:00Z", "+07:00", false,
 		}, {
 			[]*pb.BusinessHours_Holiday{{
-				Year:  conv.PI32(2018),
-				Month: conv.PI32(8),
-				Day:   conv.PI32(22),
+				Year:   PI32(2018),
+				Month:  PI32(8),
+				Day:    PI32(22),
 			}, {
-				Year:  conv.PI32(2018),
-				Month: conv.PI32(8),
-				Day:   conv.PI32(21),
+				Year:   PI32(2018),
+				Month:  PI32(8),
+				Day:    PI32(21),
 			}}, "2018-08-21T23:04:00Z", "+07:00", true,
 		},
 	}
@@ -66,37 +65,37 @@ func TestDuringBusinessHour(t *testing.T) {
 	}{
 		{
 			[]*pb.BusinessHours_Holiday{{
-				Year:  conv.PI32(2018),
-				Month: conv.PI32(8),
-				Day:   conv.PI32(21),
+				Year:   PI32(2018),
+				Month:  PI32(8),
+				Day:    PI32(21),
 			}}, []*pb.BusinessHours_WorkingDay{{}}, "2018-08-21T15:04:00Z", "+07:00", false,
 		},
 		{
 			nil, []*pb.BusinessHours_WorkingDay{{
-				Weekday:   conv.S("Wednesday"),
-				StartTime: conv.S("08:30"),
-				EndTime:   conv.S("23:30"),
+				Weekday:    S("Wednesday"),
+				StartTime:  S("08:30"),
+				EndTime:    S("23:30"),
 			}}, "2018-08-21T05:04:00Z", "+07:00", false, // Tuesday
 		},
 		{
 			nil, []*pb.BusinessHours_WorkingDay{{
-				Weekday:   conv.S("Tuesday"),
-				StartTime: conv.S("08:30"),
-				EndTime:   conv.S("23:30"),
+				Weekday:    S("Tuesday"),
+				StartTime:  S("08:30"),
+				EndTime:    S("23:30"),
 			}}, "2018-08-21T05:04:00Z", "+07:00", true, // Tuesday
 		},
 		{
 			nil, []*pb.BusinessHours_WorkingDay{{
-				Weekday:   conv.S("Tuesday"),
-				StartTime: conv.S("08:30"),
-				EndTime:   conv.S("23:30"),
+				Weekday:    S("Tuesday"),
+				StartTime:  S("08:30"),
+				EndTime:    S("23:30"),
 			}}, "2018-08-21T23:04:00Z", "+07:00", false, // Tuesday
 		},
 		{
 			nil, []*pb.BusinessHours_WorkingDay{{
-				Weekday:   conv.S("Thursday"),
-				StartTime: conv.S("10:30"),
-				EndTime:   conv.S("11:00"),
+				Weekday:    S("Thursday"),
+				StartTime:  S("10:30"),
+				EndTime:    S("11:00"),
 			}}, "2019-02-28T04:30:39Z", "+07:00", false, // Thursday
 		},
 	}
@@ -118,5 +117,29 @@ func TestDuringBusinessHour(t *testing.T) {
 		if duringbusiness != tc.in {
 			t.Errorf("%s: should be %v, got %v", tc.now, tc.in, duringbusiness)
 		}
+	}
+}
+
+func PI32(i int) *int32 {
+	i32 := int32(i)
+	return &i32
+}
+
+func S(s interface{}) *string {
+	if s == nil {
+		return S("")
+	}
+	switch v := s.(type) {
+	case []byte:
+		b := string(v)
+		return &b
+	case string:
+		return &v
+	case fmt.Stringer:
+		str := v.String()
+		return &str
+	default:
+		str := fmt.Sprintf("%v", v)
+		return &str
 	}
 }
