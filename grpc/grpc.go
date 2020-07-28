@@ -16,7 +16,9 @@ import (
 	"github.com/subiz/errors"
 	co "github.com/subiz/header/common"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	protoV2 "google.golang.org/protobuf/proto"
 )
 
@@ -205,7 +207,7 @@ func GetPanic(md metadata.MD) *errors.Error {
 //   returnedType: type of returned value
 //   in: value of input (in request) parameter
 // this method returns output just like a normal GRPC call
-func (me *ForwardServer) forward(host, method string, returnedType reflect.Type, ctx context.Context, in interface{}) (interface{}, error) {
+func (me *ForwardServer) forward(host, method string, returnedType reflect.Type, ctx context.Context, in interface{}, extraHeader metadata.MD) (interface{}, error) {
 	// use cache host connection or create a new one
 	me.Lock()
 	cc, ok := me.conn[host]
@@ -221,7 +223,8 @@ func (me *ForwardServer) forward(host, method string, returnedType reflect.Type,
 	}
 
 	md, _ := metadata.FromIncomingContext(ctx)
-	outctx := metadata.NewOutgoingContext(context.Background(), md)
+	extraHeader = metadata.Join(extraHeader, md)
+	outctx := metadata.NewOutgoingContext(context.Background(), extraHeader)
 
 	out := reflect.New(returnedType).Interface()
 	var header, trailer metadata.MD
@@ -259,6 +262,7 @@ func NewShardIntercept(serviceAddrs []string, id int) grpc.ServerOption {
 	}
 
 	f := func(ctx context.Context, in interface{}, sinfo *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+
 		lock.Lock()
 		if !analysed {
 			returnedTypeM = analysisReturnType(sinfo.Server)
@@ -267,7 +271,7 @@ func NewShardIntercept(serviceAddrs []string, id int) grpc.ServerOption {
 		lock.Unlock()
 
 		md, _ := metadata.FromIncomingContext(ctx)
-		pkey := strings.Join(md[PartitionKey], "")
+		pkey := strings.Join(md["shard_key"], "")
 		if pkey == "" {
 			pkey = GetAccountId(in)
 			if pkey == "" {
@@ -286,12 +290,32 @@ func NewShardIntercept(serviceAddrs []string, id int) grpc.ServerOption {
 			return handler(ctx, in)
 		}
 
+		extraHeader := metadata.New(nil)
+		// the request have been proxied and then proxied, ...
+		// we give up to prevent looping
+		redirectOfRedirect := len(strings.Join(md["shard_redirected_2"], "")) > 0
+		if redirectOfRedirect {
+			return nil, status.Errorf(codes.Internal, "Sharding inconsistent")
+		}
+
+		// the request just have been proxied and still
+		// doesn't arrived to the correct host
+		// this happend when total_shards is not consistent between servers. We will wait for
+		// 5 secs and then proxy one more time. Hoping that the consistent will be resolved
+		justRedirect := len(strings.Join(md["shard_redirected"], "")) > 0
+		if justRedirect {
+			extraHeader.Set("shard_redirected_2", "true")
+			time.Sleep(5 * time.Second)
+		} else {
+			extraHeader.Set("shard_redirected", "true")
+		}
+
 		// the correct host
 		methodSplit := strings.Split(sinfo.FullMethod, "/")
 		shortmethod := methodSplit[len(methodSplit)-1]
 		header := metadata.Pairs("total_shards", strconv.Itoa(numShard))
 		grpc.SendHeader(ctx, header)
-		return s.forward(serviceAddrs[parindex], sinfo.FullMethod, returnedTypeM[shortmethod], ctx, in)
+		return s.forward(serviceAddrs[parindex], sinfo.FullMethod, returnedTypeM[shortmethod], ctx, in, extraHeader)
 	}
 
 	return grpc.UnaryInterceptor(f)
@@ -338,5 +362,3 @@ func GetAccountId(message interface{}) string {
 
 // global hashing util, used to hash key to partition number
 var ghash = fnv.New32a()
-
-const PartitionKey = "shard_key"

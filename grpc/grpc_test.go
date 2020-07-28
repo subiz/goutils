@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	// "fmt"
 	"strings"
 	//	proto "github.com/golang/protobuf/proto"
 	"context"
@@ -63,7 +62,8 @@ func TestCache(t *testing.T) {
 }
 
 type TestShardApiServer struct {
-	id int
+	id     int
+	shards []string
 }
 
 func (me *TestShardApiServer) ListTopVisitors(ctx context.Context, req *cpb.Id) (*upb.Visitors, error) {
@@ -75,16 +75,16 @@ func (me TestShardApiServer) Serve(id int) {
 	if err != nil {
 		panic(err)
 	}
-	grpcServer := grpc.NewServer(NewShardIntercept([]string{":21240", ":21241"}, id))
+	grpcServer := grpc.NewServer(NewShardIntercept(me.shards, id))
 	header.RegisterVisitorMgrServer(grpcServer, &me)
 	grpcServer.Serve(lis)
 }
 
 func TestShard(t *testing.T) {
-	server0 := &TestShardApiServer{}
+	server0 := &TestShardApiServer{shards: []string{":21240", ":21241"}}
 	go server0.Serve(0)
 
-	server1 := &TestShardApiServer{}
+	server1 := &TestShardApiServer{shards: []string{":21240", ":21241"}}
 	go server1.Serve(1)
 
 	conn, err := dialGrpc(":21240")
@@ -106,6 +106,29 @@ func TestShard(t *testing.T) {
 	if strings.Join(header2.Get("total_shards"), "") != "2" {
 		t.Fatal("SHOULD RETURN SHARD NUM", strings.Join(header2.Get("total_shards"), ""))
 	}
+}
+
+func TestShardInconsistent(t *testing.T) {
+	server0 := &TestShardApiServer{shards: []string{":21240", ":21241"}}
+	go server0.Serve(0)
+
+	server1 := &TestShardApiServer{shards: []string{":21240"}}
+	go server1.Serve(1)
+
+	conn, err := dialGrpc(":21240")
+	if err != nil {
+		panic(err)
+	}
+	client := header.NewVisitorMgrClient(conn)
+
+	// server 0 => proxy to server 1 => proxy to server 0
+	// must redirect
+	var header2 metadata.MD // variable to store header and trailer
+	client.ListTopVisitors(context.Background(), &cpb.Id{AccountId: "thanh1"}, grpc.Header(&header2))
+	if strings.Join(header2.Get("total_shards"), "") != "2" {
+		t.Fatal("SHOULD RETURN SHARD NUM", strings.Join(header2.Get("total_shards"), ""))
+	}
+	// must exit, should not loop forever
 }
 
 func TestProto(t *testing.T) {
