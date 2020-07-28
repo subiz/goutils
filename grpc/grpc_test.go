@@ -1,19 +1,18 @@
 package grpc
 
 import (
-	"strings"
-	//	proto "github.com/golang/protobuf/proto"
 	"context"
+	"net"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/subiz/header"
 	pb "github.com/subiz/header/api"
 	cpb "github.com/subiz/header/common"
 	upb "github.com/subiz/header/user"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"net"
-	"strconv"
-	"testing"
-	"time"
 )
 
 type TestCacheApiServer struct {
@@ -44,7 +43,7 @@ func TestCache(t *testing.T) {
 	server := &TestCacheApiServer{}
 	go server.Serve()
 
-	conn, err := dialGrpc(":21234")
+	conn, err := grpc.Dial(":21234", grpc.WithUnaryInterceptor(NewCacheInterceptor()), grpc.WithInsecure())
 	if err != nil {
 		panic(err)
 	}
@@ -71,23 +70,23 @@ func (me *TestShardApiServer) ListTopVisitors(ctx context.Context, req *cpb.Id) 
 }
 
 func (me TestShardApiServer) Serve(id int) {
-	lis, err := net.Listen("tcp", ":2124"+strconv.Itoa(id))
+	lis, err := net.Listen("tcp", me.shards[id])
 	if err != nil {
 		panic(err)
 	}
-	grpcServer := grpc.NewServer(NewShardIntercept(me.shards, id))
+	grpcServer := grpc.NewServer(NewServerShardInterceptor(me.shards, id))
 	header.RegisterVisitorMgrServer(grpcServer, &me)
 	grpcServer.Serve(lis)
 }
 
-func TestShard(t *testing.T) {
+func TestShardServer(t *testing.T) {
 	server0 := &TestShardApiServer{shards: []string{":21240", ":21241"}}
 	go server0.Serve(0)
 
 	server1 := &TestShardApiServer{shards: []string{":21240", ":21241"}}
 	go server1.Serve(1)
 
-	conn, err := dialGrpc(":21240")
+	conn, err := grpc.Dial(":21240", grpc.WithInsecure())
 	if err != nil {
 		panic(err)
 	}
@@ -96,26 +95,27 @@ func TestShard(t *testing.T) {
 	// correct server
 	var header metadata.MD // variable to store header and trailer
 	client.ListTopVisitors(context.Background(), &cpb.Id{AccountId: "thanh"}, grpc.Header(&header))
-	if strings.Join(header.Get("shard_num"), "") != "" {
+	if strings.Join(header.Get("shard_addrs"), "") != "" {
 		t.Fatal("SHOULD NOT RETURN ANY SHARD_NUM")
 	}
 
 	// must redirect
 	var header2 metadata.MD // variable to store header and trailer
 	client.ListTopVisitors(context.Background(), &cpb.Id{AccountId: "thanh1"}, grpc.Header(&header2))
-	if strings.Join(header2.Get("total_shards"), "") != "2" {
-		t.Fatal("SHOULD RETURN SHARD NUM", strings.Join(header2.Get("total_shards"), ""))
+	if strings.Join(header2.Get("shard_addrs"), ",") != ":21240,:21241" {
+
+		t.Fatal("SHOULD RETURN SHARD NUM", strings.Join(header2.Get("shard_addrs"), ","))
 	}
 }
 
-func TestShardInconsistent(t *testing.T) {
-	server0 := &TestShardApiServer{shards: []string{":21240", ":21241"}}
+func TestShardServerInconsistent(t *testing.T) {
+	server0 := &TestShardApiServer{shards: []string{":21260", ":21241"}}
 	go server0.Serve(0)
 
-	server1 := &TestShardApiServer{shards: []string{":21240"}}
+	server1 := &TestShardApiServer{shards: []string{":21260"}}
 	go server1.Serve(1)
 
-	conn, err := dialGrpc(":21240")
+	conn, err := grpc.Dial(":21260", grpc.WithInsecure())
 	if err != nil {
 		panic(err)
 	}
@@ -129,6 +129,41 @@ func TestShardInconsistent(t *testing.T) {
 		t.Fatal("SHOULD RETURN SHARD NUM", strings.Join(header2.Get("total_shards"), ""))
 	}
 	// must exit, should not loop forever
+}
+
+func TestShardServerAndClient(t *testing.T) {
+	server0 := &TestShardApiServer{shards: []string{":21250", ":21251"}}
+	go server0.Serve(0)
+
+	server1 := &TestShardApiServer{shards: []string{":21250", ":21251"}}
+	go server1.Serve(1)
+
+	conn, err := grpc.Dial(":21250", grpc.WithInsecure(), grpc.WithUnaryInterceptor(NewClientShardInterceptor(":21250")))
+	if err != nil {
+		panic(err)
+	}
+	client := header.NewVisitorMgrClient(conn)
+
+	// correct server
+	var header metadata.MD // variable to store header and trailer
+	client.ListTopVisitors(context.Background(), &cpb.Id{AccountId: "thanh"}, grpc.Header(&header))
+	if strings.Join(header.Get("shard_addrs"), "") != "" {
+		t.Fatal("SHOULD NOT RETURN ANY SHARD_NUM")
+	}
+
+	// must redirect
+	var header2 metadata.MD // variable to store header and trailer
+	client.ListTopVisitors(context.Background(), &cpb.Id{AccountId: "thanh1"}, grpc.Header(&header2))
+	if strings.Join(header2.Get("shard_addrs"), "") != ":21250:21251" {
+		t.Fatal("SHOULD REDIRECT", strings.Join(header2.Get("shard_addrs"), ""))
+	}
+
+	// we have learn about the servers, should not redirect agan
+	var header3 metadata.MD // variable to store header and trailer
+	client.ListTopVisitors(context.Background(), &cpb.Id{AccountId: "thanh1"}, grpc.Header(&header3))
+	if strings.Join(header3.Get("total_shards"), "") != "" {
+		t.Fatal("SHOULD NOT REDIRECT")
+	}
 }
 
 func TestProto(t *testing.T) {

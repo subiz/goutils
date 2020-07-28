@@ -30,7 +30,8 @@ const (
 	PanicKey = "panic"
 )
 
-func NewShardInterceptor() func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+// client
+func NewCacheInterceptor() func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 	var cachedMethods sync.Map
 
 	cache, err := ristretto.NewCache(&ristretto.Config{
@@ -75,48 +76,59 @@ func NewShardInterceptor() func(ctx context.Context, method string, req interfac
 	}
 }
 
-func NewCacheInterceptor() func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-	var cachedMethods sync.Map
-
-	cache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1e8,     // number of keys to track frequency of (100M).
-		MaxCost:     1 << 30, // maximum cost of cache (1GB).
-		BufferItems: 64,      // number of keys per Get buffer.
-	})
-	if err != nil {
-		panic(err)
-	}
+func NewClientShardInterceptor(addr string) func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	lock := &sync.Mutex{}
+	conn := make(map[string]*grpc.ClientConn)
+	addrs := []string{}
 
 	return func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		if _, ok := cachedMethods.Load(method); ok {
-			key := proto.MarshalTextString(req.(proto.Message))
-			if val, ok := cache.Get(key); ok {
-				return proto.Unmarshal(val.([]byte), reply.(proto.Message))
+		lock.Lock()
+		if len(addrs) > 0 {
+			md, _ := metadata.FromOutgoingContext(ctx)
+			pkey := strings.Join(md["shard_key"], "")
+			if pkey == "" {
+				pkey = GetAccountId(req)
+			}
+			if pkey != "" {
+				ghash.Write([]byte(pkey))
+				parindex := int(ghash.Sum32()) % len(addrs)
+				ghash.Reset()
+
+				host := addrs[parindex]
+				co, ok := conn[host]
+				if !ok {
+					var err error
+					co, err = dialGrpc(host)
+					if err != nil {
+						lock.Unlock()
+						return err
+					}
+					conn[host] = co
+				}
+				lock.Unlock()
+				var header metadata.MD // variable to store header and trailer
+				opts = append([]grpc.CallOption{grpc.Header(&header)}, opts...)
+				err := co.Invoke(ctx, method, req, reply, opts...)
+				if len(header["shard_addrs"]) > 0 {
+					lock.Lock()
+					addrs = header.Get("shard_addrs")
+					lock.Unlock()
+				}
+				return err
 			}
 		}
 
-		var header metadata.MD // variable to store header and trailer
+		lock.Unlock()
+		// no sharding parameter, perform the request anyway
+		var header metadata.MD
 		opts = append([]grpc.CallOption{grpc.Header(&header)}, opts...)
 		err := invoker(ctx, method, req, reply, cc, opts...)
-		if err != nil {
-			return err
+		if len(header["shard_addrs"]) > 0 {
+			lock.Lock()
+			addrs = header.Get("shard_addrs")
+			lock.Unlock()
 		}
-
-		if len(header["max-age"]) > 0 {
-			maxage, err := strconv.Atoi(header["max-age"][0])
-			if err == nil {
-				key := proto.MarshalTextString(req.(proto.Message))
-				val, _ := proto.Marshal(reply.(proto.Message))
-				if maxage > 0 {
-					cachedMethods.Store(method, true)
-					cache.SetWithTTL(key, val, 1, time.Duration(maxage)*time.Second)
-				} else {
-					cache.Del(key)
-				}
-			}
-		}
-
-		return nil
+		return err
 	}
 }
 
@@ -236,8 +248,8 @@ func (me *ForwardServer) forward(host, method string, returnedType reflect.Type,
 }
 
 // dialGrpc makes a GRPC connection to service
-func dialGrpc(service string) (*grpc.ClientConn, error) {
-	var opts []grpc.DialOption
+func dialGrpc(service string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	opts = append([]grpc.DialOption{}, opts...)
 	opts = append(opts, grpc.WithInsecure())
 	opts = append(opts, grpc.WithBlock())
 	opts = append(opts, grpc.WithTimeout(5*time.Second))
@@ -249,8 +261,8 @@ type ForwardServer struct {
 	conn map[string]*grpc.ClientConn
 }
 
-// NewShardIntercept makes a new GRPC shard server interceptor
-func NewShardIntercept(serviceAddrs []string, id int) grpc.ServerOption {
+// NewShardInterceptor makes a new GRPC shard server interceptor
+func NewServerShardInterceptor(serviceAddrs []string, id int) grpc.ServerOption {
 	numShard := len(serviceAddrs)
 	analysed := false
 	var returnedTypeM map[string]reflect.Type
@@ -262,7 +274,6 @@ func NewShardIntercept(serviceAddrs []string, id int) grpc.ServerOption {
 	}
 
 	f := func(ctx context.Context, in interface{}, sinfo *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-
 		lock.Lock()
 		if !analysed {
 			returnedTypeM = analysisReturnType(sinfo.Server)
@@ -313,7 +324,8 @@ func NewShardIntercept(serviceAddrs []string, id int) grpc.ServerOption {
 		// the correct host
 		methodSplit := strings.Split(sinfo.FullMethod, "/")
 		shortmethod := methodSplit[len(methodSplit)-1]
-		header := metadata.Pairs("total_shards", strconv.Itoa(numShard))
+		header := metadata.New(nil)
+		header.Set("shard_addrs", serviceAddrs...)
 		grpc.SendHeader(ctx, header)
 		return s.forward(serviceAddrs[parindex], sinfo.FullMethod, returnedTypeM[shortmethod], ctx, in, extraHeader)
 	}
