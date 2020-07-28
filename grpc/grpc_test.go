@@ -43,7 +43,7 @@ func TestCache(t *testing.T) {
 	server := &TestCacheApiServer{}
 	go server.Serve()
 
-	conn, err := grpc.Dial(":21234", grpc.WithUnaryInterceptor(NewCacheInterceptor()), grpc.WithInsecure())
+	conn, err := grpc.Dial(":21234", WithCache(), grpc.WithInsecure())
 	if err != nil {
 		panic(err)
 	}
@@ -138,7 +138,7 @@ func TestShardServerAndClient(t *testing.T) {
 	server1 := &TestShardApiServer{shards: []string{":21250", ":21251"}}
 	go server1.Serve(1)
 
-	conn, err := grpc.Dial(":21250", grpc.WithInsecure(), grpc.WithUnaryInterceptor(NewClientShardInterceptor(":21250")))
+	conn, err := grpc.Dial(":21250", grpc.WithInsecure(), WithShardRedirect())
 	if err != nil {
 		panic(err)
 	}

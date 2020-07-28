@@ -30,10 +30,17 @@ const (
 	PanicKey = "panic"
 )
 
-// client
-func NewCacheInterceptor() func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+// WithCache returns a DialOption which can cache the result of the grpc requests.
+// The server control caching much like HTTP Cache-Control Header. The server attachs
+// "max-age" header indicates how many seconds should the client cache the response.
+// For that duration, the client would returns immediately the last response for those
+// requests that has identical parameters.
+//
+// MAGIC: this interceptor may drop all call options, its trailing
+// interceptors may also not be executed. We can remove this magic
+// if we have better understanding of the go grpc library
+func WithCache() grpc.DialOption {
 	var cachedMethods sync.Map
-
 	cache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1e8,     // number of keys to track frequency of (100M).
 		MaxCost:     1 << 30, // maximum cost of cache (1GB).
@@ -43,7 +50,8 @@ func NewCacheInterceptor() func(ctx context.Context, method string, req interfac
 		panic(err)
 	}
 
-	return func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	f := func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		// exit immediately if the method and its params match a cache item
 		if _, ok := cachedMethods.Load(method); ok {
 			key := proto.MarshalTextString(req.(proto.Message))
 			if val, ok := cache.Get(key); ok {
@@ -51,7 +59,8 @@ func NewCacheInterceptor() func(ctx context.Context, method string, req interfac
 			}
 		}
 
-		var header metadata.MD // variable to store header and trailer
+		// cache miss, invoke request normally
+		var header metadata.MD
 		opts = append([]grpc.CallOption{grpc.Header(&header)}, opts...)
 		err := invoker(ctx, method, req, reply, cc, opts...)
 		if err != nil {
@@ -74,31 +83,42 @@ func NewCacheInterceptor() func(ctx context.Context, method string, req interfac
 
 		return nil
 	}
+	return grpc.WithUnaryInterceptor(f)
 }
 
-func NewClientShardInterceptor(addr string) func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+// WithShardRedirect creates a dial option that learns on "shard_addrs" reponse
+// header to send requests to correct shard
+// see https://www.notion.so/Shard-service-c002bcb0b00c47669bce547be646cd9f
+// for the overall design
+func WithShardRedirect() grpc.DialOption {
 	lock := &sync.Mutex{}
+	// GRPC connections to all shard workers, mapping host (user-3.user:2000) to connection
 	conn := make(map[string]*grpc.ClientConn)
+	// list of current shard worker addresses (order is important)
 	addrs := []string{}
 
-	return func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	f := func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		lock.Lock()
+
+		// has data learned from last request
 		if len(addrs) > 0 {
+			// looking for shard key in header or account_id field in parameter
 			md, _ := metadata.FromOutgoingContext(ctx)
 			pkey := strings.Join(md["shard_key"], "")
 			if pkey == "" {
 				pkey = GetAccountId(req)
 			}
 			if pkey != "" {
-				ghash.Write([]byte(pkey))
-				parindex := int(ghash.Sum32()) % len(addrs)
-				ghash.Reset()
+				// finding the shard number
+				var hash = fnv.New32a()
+				hash.Write([]byte(pkey))
+				shardNumber := int(hash.Sum32()) % len(addrs)
 
-				host := addrs[parindex]
+				host := addrs[shardNumber]
 				co, ok := conn[host]
 				if !ok {
 					var err error
-					co, err = dialGrpc(host)
+					co, err = grpc.Dial(host, grpc.WithInsecure())
 					if err != nil {
 						lock.Unlock()
 						return err
@@ -130,6 +150,7 @@ func NewClientShardInterceptor(addr string) func(ctx context.Context, method str
 		}
 		return err
 	}
+	return grpc.WithUnaryInterceptor(f)
 }
 
 // SetMaxAge is used by the grpc server to tell clients the response isn't going
@@ -219,21 +240,7 @@ func GetPanic(md metadata.MD) *errors.Error {
 //   returnedType: type of returned value
 //   in: value of input (in request) parameter
 // this method returns output just like a normal GRPC call
-func (me *ForwardServer) forward(host, method string, returnedType reflect.Type, ctx context.Context, in interface{}, extraHeader metadata.MD) (interface{}, error) {
-	// use cache host connection or create a new one
-	me.Lock()
-	cc, ok := me.conn[host]
-	if !ok {
-		var err error
-		cc, err = dialGrpc(host)
-		if err != nil {
-			me.Unlock()
-			return nil, err
-		}
-		me.conn[host] = cc
-		me.Unlock()
-	}
-
+func forward(cc *grpc.ClientConn, method string, returnedType reflect.Type, ctx context.Context, in interface{}, extraHeader metadata.MD) (interface{}, error) {
 	md, _ := metadata.FromIncomingContext(ctx)
 	extraHeader = metadata.Join(extraHeader, md)
 	outctx := metadata.NewOutgoingContext(context.Background(), extraHeader)
@@ -247,33 +254,27 @@ func (me *ForwardServer) forward(host, method string, returnedType reflect.Type,
 	return out, err
 }
 
-// dialGrpc makes a GRPC connection to service
-func dialGrpc(service string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	opts = append([]grpc.DialOption{}, opts...)
-	opts = append(opts, grpc.WithInsecure())
-	opts = append(opts, grpc.WithBlock())
-	opts = append(opts, grpc.WithTimeout(5*time.Second))
-	return grpc.Dial(service, opts...)
-}
-
-type ForwardServer struct {
-	*sync.Mutex
-	conn map[string]*grpc.ClientConn
-}
-
-// NewShardInterceptor makes a new GRPC shard server interceptor
+// NewShardInterceptor makes a GRPC server intercepter that can be used for sharding
+// see https://www.notion.so/Shard-service-c002bcb0b00c47669bce547be646cd9f
+// for more details about the design
 func NewServerShardInterceptor(serviceAddrs []string, id int) grpc.ServerOption {
+	// holds the current maximum number of shards
 	numShard := len(serviceAddrs)
-	analysed := false
+
+	// in order to proxy (forward) the request to another grpc host,
+	// we must have an output object of the request's method (so we can marshal the response).
+	// we are going to make a map of returning type for all methods of the server. And do it
+	// only once time, right before the first request.
+	analysed := false // make sure we don't make the map twice
 	var returnedTypeM map[string]reflect.Type
 
+	// GRPC connections to shard workers
+	// mapping worker address (user-2.user:8080) to a GRPC connection
 	lock := &sync.Mutex{}
-	s := &ForwardServer{
-		conn:  make(map[string]*grpc.ClientConn),
-		Mutex: &sync.Mutex{},
-	}
+	conn := make(map[string]*grpc.ClientConn)
 
 	f := func(ctx context.Context, in interface{}, sinfo *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// making a map of returning type for all methods of the server
 		lock.Lock()
 		if !analysed {
 			returnedTypeM = analysisReturnType(sinfo.Server)
@@ -281,6 +282,7 @@ func NewServerShardInterceptor(serviceAddrs []string, id int) grpc.ServerOption 
 		}
 		lock.Unlock()
 
+		// looking for shard_key in header or in account_id parameter
 		md, _ := metadata.FromIncomingContext(ctx)
 		pkey := strings.Join(md["shard_key"], "")
 		if pkey == "" {
@@ -291,19 +293,17 @@ func NewServerShardInterceptor(serviceAddrs []string, id int) grpc.ServerOption 
 			}
 		}
 
-		lock.Lock()
-		ghash.Write([]byte(pkey))
-		parindex := ghash.Sum32() % uint32(numShard) // 1024
-		ghash.Reset()
-		lock.Unlock()
+		// find the correct shard
+		var hash = fnv.New32a()
+		hash.Write([]byte(pkey))
+		parindex := hash.Sum32() % uint32(numShard)
 
-		if int(parindex) == id { // correct partition
+		// process if this is the correct shard
+		if int(parindex) == id {
 			return handler(ctx, in)
 		}
 
-		extraHeader := metadata.New(nil)
-		// the request have been proxied and then proxied, ...
-		// we give up to prevent looping
+		// the request have been proxied two times. We give up to prevent looping
 		redirectOfRedirect := len(strings.Join(md["shard_redirected_2"], "")) > 0
 		if redirectOfRedirect {
 			return nil, status.Errorf(codes.Internal, "Sharding inconsistent")
@@ -314,26 +314,44 @@ func NewServerShardInterceptor(serviceAddrs []string, id int) grpc.ServerOption 
 		// this happend when total_shards is not consistent between servers. We will wait for
 		// 5 secs and then proxy one more time. Hoping that the consistent will be resolved
 		justRedirect := len(strings.Join(md["shard_redirected"], "")) > 0
+		extraHeader := metadata.New(nil)
 		if justRedirect {
+			// mark the the request have been proxied twice
 			extraHeader.Set("shard_redirected_2", "true")
 			time.Sleep(5 * time.Second)
 		} else {
+			// mark the the request have been proxied once
 			extraHeader.Set("shard_redirected", "true")
 		}
 
-		// the correct host
 		methodSplit := strings.Split(sinfo.FullMethod, "/")
 		shortmethod := methodSplit[len(methodSplit)-1]
 		header := metadata.New(nil)
 		header.Set("shard_addrs", serviceAddrs...)
 		grpc.SendHeader(ctx, header)
-		return s.forward(serviceAddrs[parindex], sinfo.FullMethod, returnedTypeM[shortmethod], ctx, in, extraHeader)
+
+		// use cache host connection or create a new one
+		host := serviceAddrs[parindex]
+		lock.Lock()
+		cc, ok := conn[host]
+		if !ok {
+			var err error
+			cc, err = grpc.Dial(host, grpc.WithInsecure())
+			if err != nil {
+				lock.Unlock()
+				return nil, err
+			}
+			conn[host] = cc
+			lock.Unlock()
+		}
+
+		return forward(cc, sinfo.FullMethod, returnedTypeM[shortmethod], ctx, in, extraHeader)
 	}
 
 	return grpc.UnaryInterceptor(f)
 }
 
-// analysisReturnType returns all return types for every GRPC method in server handler
+// analysisReturnType returns all return types for every GRPC methods in server handler
 // the returned map takes full method name (i.e., /package.service/method) as key, and the return type as value
 // For example, with handler
 //   (s *server) func Goodbye() string {}
@@ -350,10 +368,12 @@ func analysisReturnType(server interface{}) map[string]reflect.Type {
 			continue
 		}
 
-		if methodType.In(2).Kind() != reflect.Ptr || methodType.In(1).Name() != "Context" {
+		// the first parameter should context and the second one should be a pointer
+		if methodType.In(1).Name() != "Context" || methodType.In(2).Kind() != reflect.Ptr {
 			continue
 		}
 
+		// the first output should be a pointer and the second one should be an error
 		if methodType.Out(0).Kind() != reflect.Ptr || methodType.Out(1).Name() != "error" {
 			continue
 		}
@@ -363,6 +383,7 @@ func analysisReturnType(server interface{}) map[string]reflect.Type {
 	return m
 }
 
+// GetAccountId returns the value of "account_id" field in message
 func GetAccountId(message interface{}) string {
 	msgrefl := message.(protoV2.Message).ProtoReflect()
 	accIdDesc := msgrefl.Descriptor().Fields().ByName("account_id")
@@ -371,6 +392,3 @@ func GetAccountId(message interface{}) string {
 	}
 	return msgrefl.Get(accIdDesc).String()
 }
-
-// global hashing util, used to hash key to partition number
-var ghash = fnv.New32a()
