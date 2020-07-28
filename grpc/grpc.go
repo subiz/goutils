@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"hash/fnv"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,6 +17,7 @@ import (
 	co "github.com/subiz/header/common"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	protoV2 "google.golang.org/protobuf/proto"
 )
 
 // CredKey is key which credential is putted in medatada.MD
@@ -24,6 +27,51 @@ const (
 	ErrKey   = "error"
 	PanicKey = "panic"
 )
+
+func NewShardInterceptor() func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	var cachedMethods sync.Map
+
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1e8,     // number of keys to track frequency of (100M).
+		MaxCost:     1 << 30, // maximum cost of cache (1GB).
+		BufferItems: 64,      // number of keys per Get buffer.
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if _, ok := cachedMethods.Load(method); ok {
+			key := proto.MarshalTextString(req.(proto.Message))
+			if val, ok := cache.Get(key); ok {
+				return proto.Unmarshal(val.([]byte), reply.(proto.Message))
+			}
+		}
+
+		var header metadata.MD // variable to store header and trailer
+		opts = append([]grpc.CallOption{grpc.Header(&header)}, opts...)
+		err := invoker(ctx, method, req, reply, cc, opts...)
+		if err != nil {
+			return err
+		}
+
+		if len(header["max-age"]) > 0 {
+			maxage, err := strconv.Atoi(header["max-age"][0])
+			if err == nil {
+				key := proto.MarshalTextString(req.(proto.Message))
+				val, _ := proto.Marshal(reply.(proto.Message))
+				if maxage > 0 {
+					cachedMethods.Store(method, true)
+					cache.SetWithTTL(key, val, 1, time.Duration(maxage)*time.Second)
+				} else {
+					cache.Del(key)
+				}
+			}
+		}
+
+		return nil
+	}
+}
 
 func NewCacheInterceptor() func(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 	var cachedMethods sync.Map
@@ -149,3 +197,146 @@ func GetPanic(md metadata.MD) *errors.Error {
 	}
 	return errors.FromString(errs)
 }
+
+// forward proxy a GRPC calls to another host, header and trailer are preserved
+// parameters:
+//   host: host address which will be redirected to
+//   method: the full RPC method string, i.e., /package.service/method.
+//   returnedType: type of returned value
+//   in: value of input (in request) parameter
+// this method returns output just like a normal GRPC call
+func (me *ForwardServer) forward(host, method string, returnedType reflect.Type, ctx context.Context, in interface{}) (interface{}, error) {
+	// use cache host connection or create a new one
+	me.Lock()
+	cc, ok := me.conn[host]
+	if !ok {
+		var err error
+		cc, err = dialGrpc(host)
+		if err != nil {
+			me.Unlock()
+			return nil, err
+		}
+		me.conn[host] = cc
+		me.Unlock()
+	}
+
+	md, _ := metadata.FromIncomingContext(ctx)
+	outctx := metadata.NewOutgoingContext(context.Background(), md)
+
+	out := reflect.New(returnedType).Interface()
+	var header, trailer metadata.MD
+	err := cc.Invoke(outctx, method, in, out, grpc.Header(&header), grpc.Trailer(&trailer))
+	grpc.SendHeader(ctx, header)
+	grpc.SetTrailer(ctx, trailer)
+
+	return out, err
+}
+
+// dialGrpc makes a GRPC connection to service
+func dialGrpc(service string) (*grpc.ClientConn, error) {
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithInsecure())
+	opts = append(opts, grpc.WithBlock())
+	opts = append(opts, grpc.WithTimeout(5*time.Second))
+	return grpc.Dial(service, opts...)
+}
+
+type ForwardServer struct {
+	*sync.Mutex
+	conn map[string]*grpc.ClientConn
+}
+
+// NewShardIntercept makes a new GRPC shard server interceptor
+func NewShardIntercept(serviceAddrs []string, id int) grpc.ServerOption {
+	numShard := len(serviceAddrs)
+	analysed := false
+	var returnedTypeM map[string]reflect.Type
+
+	lock := &sync.Mutex{}
+	s := &ForwardServer{
+		conn:  make(map[string]*grpc.ClientConn),
+		Mutex: &sync.Mutex{},
+	}
+
+	f := func(ctx context.Context, in interface{}, sinfo *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		lock.Lock()
+		if !analysed {
+			returnedTypeM = analysisReturnType(sinfo.Server)
+			analysed = true
+		}
+		lock.Unlock()
+
+		md, _ := metadata.FromIncomingContext(ctx)
+		pkey := strings.Join(md[PartitionKey], "")
+		if pkey == "" {
+			pkey = GetAccountId(in)
+			if pkey == "" {
+				// no sharding parameter, perform the request anyway
+				return handler(ctx, in)
+			}
+		}
+
+		lock.Lock()
+		ghash.Write([]byte(pkey))
+		parindex := ghash.Sum32() % uint32(numShard) // 1024
+		ghash.Reset()
+		lock.Unlock()
+
+		if int(parindex) == id { // correct partition
+			return handler(ctx, in)
+		}
+
+		// the correct host
+		methodSplit := strings.Split(sinfo.FullMethod, "/")
+		shortmethod := methodSplit[len(methodSplit)-1]
+		header := metadata.Pairs("total_shards", strconv.Itoa(numShard))
+		grpc.SendHeader(ctx, header)
+		return s.forward(serviceAddrs[parindex], sinfo.FullMethod, returnedTypeM[shortmethod], ctx, in)
+	}
+
+	return grpc.UnaryInterceptor(f)
+}
+
+// analysisReturnType returns all return types for every GRPC method in server handler
+// the returned map takes full method name (i.e., /package.service/method) as key, and the return type as value
+// For example, with handler
+//   (s *server) func Goodbye() string {}
+//   (s *server) func Ping(_ context.Context, _ *pb.Ping) (*pb.Pong, error) {}
+//   (s *server) func Hello(_ context.Context, _ *pb.Empty) (*pb.String, error) {}
+// this function detected 2 GRPC methods is Ping and Hello, it would return
+// {"Ping": *pb.Pong, "Hello": *pb.Empty}
+func analysisReturnType(server interface{}) map[string]reflect.Type {
+	m := make(map[string]reflect.Type)
+	t := reflect.TypeOf(server)
+	for i := 0; i < t.NumMethod(); i++ {
+		methodType := t.Method(i).Type
+		if methodType.NumOut() != 2 || methodType.NumIn() < 2 {
+			continue
+		}
+
+		if methodType.In(2).Kind() != reflect.Ptr || methodType.In(1).Name() != "Context" {
+			continue
+		}
+
+		if methodType.Out(0).Kind() != reflect.Ptr || methodType.Out(1).Name() != "error" {
+			continue
+		}
+
+		m[t.Method(i).Name] = methodType.Out(0).Elem()
+	}
+	return m
+}
+
+func GetAccountId(message interface{}) string {
+	msgrefl := message.(protoV2.Message).ProtoReflect()
+	accIdDesc := msgrefl.Descriptor().Fields().ByName("account_id")
+	if accIdDesc == nil {
+		return ""
+	}
+	return msgrefl.Get(accIdDesc).String()
+}
+
+// global hashing util, used to hash key to partition number
+var ghash = fnv.New32a()
+
+const PartitionKey = "shard_key"
