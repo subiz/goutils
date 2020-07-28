@@ -195,7 +195,7 @@ func FromGrpcCtx(ctx context.Context) *co.Context {
 	return pctx
 }
 
-func unaryinterceptorhandler(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (ret interface{}, err error) {
+func RecoverInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (ret interface{}, err error) {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -222,7 +222,7 @@ func unaryinterceptorhandler(ctx context.Context, req interface{}, _ *grpc.Unary
 
 // UnaryServerInterceptor returns a new unary server interceptor for panic recovery.
 func NewRecoveryInterceptor() grpc.ServerOption {
-	return grpc.UnaryInterceptor(unaryinterceptorhandler)
+	return grpc.UnaryInterceptor(RecoverInterceptor)
 }
 
 func GetPanic(md metadata.MD) *errors.Error {
@@ -257,7 +257,7 @@ func forward(cc *grpc.ClientConn, method string, returnedType reflect.Type, ctx 
 // NewShardInterceptor makes a GRPC server intercepter that can be used for sharding
 // see https://www.notion.so/Shard-service-c002bcb0b00c47669bce547be646cd9f
 // for more details about the design
-func NewServerShardInterceptor(serviceAddrs []string, id int) grpc.ServerOption {
+func NewServerShardInterceptor(serviceAddrs []string, id int) grpc.UnaryServerInterceptor {
 	// holds the current maximum number of shards
 	numShard := len(serviceAddrs)
 
@@ -273,7 +273,7 @@ func NewServerShardInterceptor(serviceAddrs []string, id int) grpc.ServerOption 
 	lock := &sync.Mutex{}
 	conn := make(map[string]*grpc.ClientConn)
 
-	f := func(ctx context.Context, in interface{}, sinfo *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, in interface{}, sinfo *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// making a map of returning type for all methods of the server
 		lock.Lock()
 		if !analysed {
@@ -347,8 +347,6 @@ func NewServerShardInterceptor(serviceAddrs []string, id int) grpc.ServerOption 
 
 		return forward(cc, sinfo.FullMethod, returnedTypeM[shortmethod], ctx, in, extraHeader)
 	}
-
-	return grpc.UnaryInterceptor(f)
 }
 
 // analysisReturnType returns all return types for every GRPC methods in server handler
