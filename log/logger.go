@@ -14,7 +14,6 @@ import (
 	"github.com/subiz/goutils/map"
 	"github.com/subiz/header"
 	compb "github.com/subiz/header/common"
-	"github.com/subiz/header/logan"
 	"github.com/subiz/kafka"
 )
 
@@ -60,7 +59,7 @@ func newLogger() *Logger {
 
 var logger = newLogger()
 
-func (l *Logger) Log(persist bool, ctx context.Context, level logan.Level, v ...interface{}) {
+func (l *Logger) Log(persist bool, ctx context.Context, level compb.Level, v ...interface{}) {
 	if len(v) < 1 || (len(v) == 1 && v[0] == nil) {
 		return
 	}
@@ -89,20 +88,20 @@ func (l *Logger) Log(persist bool, ctx context.Context, level logan.Level, v ...
 	if !persist {
 		return
 	}
-	log := &logan.Log{
+	log := &compb.Log{
 		Level:       level.String(),
 		Created:     time.Now().UnixNano(),
 		Message:     message,
 		TraceId:     GetTrace(ctx),
 		Tags:        l.tags,
-		Debug:       &logan.Debug{StackTrace: debug.Stack(), Hostname: l.hostname},
+		Debug:       &compb.Debug{StackTrace: debug.Stack(), Hostname: l.hostname},
 		ServiceName: l.service,
 	}
 	log.Ctx = &compb.Context{SubTopic: header.E_LogLogRequested.String()}
 	l.pub.PublishAsync(header.E_LogRequested.String(), log, -1, GetTrace(ctx))
 }
 
-func (l *Logger) log(persist bool, level logan.Level, v ...interface{}) {
+func (l *Logger) log(persist bool, level compb.Level, v ...interface{}) {
 	if len(v) == 0 {
 		return
 	}
@@ -116,7 +115,7 @@ func (l *Logger) log(persist bool, level logan.Level, v ...interface{}) {
 }
 
 func (l *Logger) Error(ctx context.Context, v ...interface{}) {
-	l.Log(true, ctx, logan.Level_error, v...)
+	l.Log(true, ctx, compb.Level_error, v...)
 }
 
 func (l *Logger) Tags(tags ...string) Logger {
@@ -216,26 +215,26 @@ func GetTrace(ctx context.Context) string {
 	return traceid
 }
 
-func Log(ctx context.Context, level logan.Level, v ...interface{}) {
+func Log(ctx context.Context, level compb.Level, v ...interface{}) {
 	logger.Log(false, ctx, level, v...)
 }
 
-func Info(v ...interface{}) { logger.log(false, logan.Level_info, v...) }
+func Info(v ...interface{}) { logger.log(false, compb.Level_info, v...) }
 
-func Warn(v ...interface{}) { logger.log(false, logan.Level_warning, v...) }
+func Warn(v ...interface{}) { logger.log(false, compb.Level_warning, v...) }
 
-func Fatal(v ...interface{}) { logger.log(true, logan.Level_fatal, v...) }
+func Fatal(v ...interface{}) { logger.log(true, compb.Level_fatal, v...) }
 
-func Debug(v ...interface{}) { logger.log(false, logan.Level_debug, v...) }
+func Debug(v ...interface{}) { logger.log(false, compb.Level_debug, v...) }
 
 func Error(v ...interface{}) {
 	if len(v) == 0 || v[0] == nil {
 		return
 	}
-	logger.log(true, logan.Level_error, v...)
+	logger.log(true, compb.Level_error, v...)
 }
 
-func Panic(v ...interface{}) { logger.log(true, logan.Level_panic, v...) }
+func Panic(v ...interface{}) { logger.log(true, compb.Level_panic, v...) }
 
 func Errorf(ctx context.Context, format string, v ...interface{}) {
 	logger.Error(ctx, fmt.Sprintf(format, v...))
@@ -266,7 +265,7 @@ func TimeEnd(key string) {
 	logger.tm.Remove("+systemcheckmark" + key)
 }
 
-func Logf(ctx context.Context, level logan.Level, format string, v ...interface{}) {
+func Logf(ctx context.Context, level compb.Level, format string, v ...interface{}) {
 	logger.Log(false, ctx, level, fmt.Sprintf(format, v...))
 }
 
