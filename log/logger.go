@@ -94,7 +94,6 @@ func (l *Logger) Log(persist bool, ctx context.Context, level compb.Level, v ...
 		Message:     message,
 		TraceId:     GetTrace(ctx),
 		Tags:        l.tags,
-		Debug:       &compb.Debug{StackTrace: debug.Stack(), Hostname: l.hostname},
 		ServiceName: l.service,
 	}
 	log.Ctx = &compb.Context{SubTopic: header.E_LogLogRequested.String()}
