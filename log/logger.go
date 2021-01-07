@@ -12,9 +12,6 @@ import (
 	"time"
 
 	"github.com/subiz/goutils/map"
-	"github.com/subiz/header"
-	compb "github.com/subiz/header/common"
-	"github.com/subiz/kafka"
 )
 
 type key int
@@ -25,7 +22,6 @@ const (
 
 type Logger struct {
 	hostname string
-	pub      *kafka.Publisher
 	tags     []string
 	service  string
 	tm       cmap.Map
@@ -59,7 +55,7 @@ func newLogger() *Logger {
 
 var logger = newLogger()
 
-func (l *Logger) Log(persist bool, ctx context.Context, level compb.Level, v ...interface{}) {
+func (l *Logger) Log(persist bool, ctx context.Context, level Level, v ...interface{}) {
 	if len(v) < 1 || (len(v) == 1 && v[0] == nil) {
 		return
 	}
@@ -79,28 +75,25 @@ func (l *Logger) Log(persist bool, ctx context.Context, level compb.Level, v ...
 	}
 
 	echo(t)
-
-	if l.pub == nil {
-		return
-	}
+	return
 
 	// only publish to kafka if persistent is required
 	if !persist {
 		return
 	}
-	log := &compb.Log{
-		Level:       level.String(),
-		Created:     time.Now().UnixNano(),
-		Message:     message,
-		TraceId:     GetTrace(ctx),
-		Tags:        l.tags,
-		ServiceName: l.service,
-	}
-	log.Ctx = &compb.Context{SubTopic: header.E_LogLogRequested.String()}
-	l.pub.PublishAsync(header.E_LogRequested.String(), log, -1, GetTrace(ctx))
+	//log := &compb.Log{
+	//Level:       level.String(),
+	//Created:     time.Now().UnixNano(),
+	//Message:     message,
+	//TraceId:     GetTrace(ctx),
+	//Tags:        l.tags,
+	//ServiceName: l.service,
+	//}
+	// log.Ctx = &compb.Context{SubTopic: header.E_LogLogRequested.String()}
+	// l.pub.PublishAsync(header.E_LogRequested.String(), log, -1, GetTrace(ctx))
 }
 
-func (l *Logger) log(persist bool, level compb.Level, v ...interface{}) {
+func (l *Logger) log(persist bool, level Level, v ...interface{}) {
 	if len(v) == 0 {
 		return
 	}
@@ -114,7 +107,7 @@ func (l *Logger) log(persist bool, level compb.Level, v ...interface{}) {
 }
 
 func (l *Logger) Error(ctx context.Context, v ...interface{}) {
-	l.Log(true, ctx, compb.Level_error, v...)
+	l.Log(true, ctx, Level_error, v...)
 }
 
 func (l *Logger) Tags(tags ...string) Logger {
@@ -192,10 +185,7 @@ func inArray(str string, list []string) bool {
 	return false
 }
 
-func Config(brokers []string, serviceName string) {
-	if len(brokers) > 0 {
-		logger.pub = kafka.NewPublisher(brokers)
-	}
+func Config(serviceName string) {
 	logger.service = serviceName
 }
 
@@ -214,26 +204,26 @@ func GetTrace(ctx context.Context) string {
 	return traceid
 }
 
-func Log(ctx context.Context, level compb.Level, v ...interface{}) {
+func Log(ctx context.Context, level Level, v ...interface{}) {
 	logger.Log(false, ctx, level, v...)
 }
 
-func Info(v ...interface{}) { logger.log(false, compb.Level_info, v...) }
+func Info(v ...interface{}) { logger.log(false, Level_info, v...) }
 
-func Warn(v ...interface{}) { logger.log(false, compb.Level_warning, v...) }
+func Warn(v ...interface{}) { logger.log(false, Level_warning, v...) }
 
-func Fatal(v ...interface{}) { logger.log(true, compb.Level_fatal, v...) }
+func Fatal(v ...interface{}) { logger.log(true, Level_fatal, v...) }
 
-func Debug(v ...interface{}) { logger.log(false, compb.Level_debug, v...) }
+func Debug(v ...interface{}) { logger.log(false, Level_debug, v...) }
 
 func Error(v ...interface{}) {
 	if len(v) == 0 || v[0] == nil {
 		return
 	}
-	logger.log(true, compb.Level_error, v...)
+	logger.log(true, Level_error, v...)
 }
 
-func Panic(v ...interface{}) { logger.log(true, compb.Level_panic, v...) }
+func Panic(v ...interface{}) { logger.log(true, Level_panic, v...) }
 
 func Errorf(ctx context.Context, format string, v ...interface{}) {
 	logger.Error(ctx, fmt.Sprintf(format, v...))
@@ -264,7 +254,7 @@ func TimeEnd(key string) {
 	logger.tm.Remove("+systemcheckmark" + key)
 }
 
-func Logf(ctx context.Context, level compb.Level, format string, v ...interface{}) {
+func Logf(ctx context.Context, level Level, format string, v ...interface{}) {
 	logger.Log(false, ctx, level, fmt.Sprintf(format, v...))
 }
 
@@ -298,3 +288,18 @@ func NotAssert(a, b interface{}) {
 		Errorf(context.Background(), "must not equal, got: %s, not expected: %s", string(aa), string(bb))
 	}
 }
+
+type Level int32
+
+const (
+	Level_debug     Level = 0
+	Level_info      Level = 1
+	Level_notice    Level = 2
+	Level_warning   Level = 3
+	Level_error     Level = 4
+	Level_critical  Level = 5
+	Level_alert     Level = 6
+	Level_emergency Level = 7
+	Level_panic     Level = 8
+	Level_fatal     Level = 9
+)
