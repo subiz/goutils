@@ -2,7 +2,6 @@ package log
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
@@ -64,17 +63,17 @@ func (l *Logger) Log(persist bool, ctx context.Context, level Level, v ...interf
 	if len(v) == 1 {
 		t = v[0]
 	}
-
-	message, err := json.Marshal(t)
-	if err != nil {
-		message = []byte(fmt.Sprintf("%v", t))
-	}
-
-	if err, ok := t.(error); ok {
-		message = []byte(err.Error())
-	}
-
 	echo(t)
+
+	// message, err := json.Marshal(t)
+	//if err != nil {
+	//message = []byte(fmt.Sprintf("%v", t))
+	//}
+
+	//if err, ok := t.(error); ok {
+	//message = []byte(err.Error())
+	//}
+
 	return
 
 	// only publish to kafka if persistent is required
@@ -271,22 +270,6 @@ func chopPath(path string) string {
 		}
 	}
 	return path
-}
-
-func Assert(a, b interface{}) {
-	aa, _ := json.Marshal(a)
-	bb, _ := json.Marshal(b)
-	if string(aa) != string(bb) {
-		Errorf(context.Background(), "must equal, got: %s, expected: %s", string(aa), string(bb))
-	}
-}
-
-func NotAssert(a, b interface{}) {
-	aa, _ := json.Marshal(a)
-	bb, _ := json.Marshal(b)
-	if string(aa) == string(bb) {
-		Errorf(context.Background(), "must not equal, got: %s, not expected: %s", string(aa), string(bb))
-	}
 }
 
 type Level int32
