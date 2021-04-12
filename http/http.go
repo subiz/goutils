@@ -99,7 +99,11 @@ func (me *Client) Request(method, url string, body []byte, config *Config) ([]by
 // method, url must not be empty
 // this method returns (response body in []byte, status code, and an error)
 func sendHTTP(client *http.Client, method, url string, header map[string]string, body []byte) ([]byte, int, error) {
-	req, err := http.NewRequest(method, url, bytes.NewReader(body))
+	bodyreader := bytes.NewReader(body)
+	if body == nil {
+		bodyreader = nil
+	}
+	req, err := http.NewRequest(method, url, bodyreader)
 	if err != nil {
 		return nil, 0, err
 	}
