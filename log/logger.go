@@ -257,12 +257,14 @@ func Logf(ctx context.Context, level Level, format string, v ...interface{}) {
 	logger.Log(false, ctx, level, fmt.Sprintf(format, v...))
 }
 
+var defaultPaths = []string{
+	"/src/bitbucket.org/subiz/",
+	"/src/git.subiz.net/",
+	"/src/github.com/subiz/",
+}
+
 func chopPath(path string) string {
-	defaultPaths := []string{
-		"/src/bitbucket.org/subiz/",
-		"/src/git.subiz.net/",
-		"/src/github.com/subiz/",
-	}
+
 	for _, p := range defaultPaths {
 		i := strings.LastIndex(path, p)
 		if i >= 0 {

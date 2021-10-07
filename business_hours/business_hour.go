@@ -28,7 +28,7 @@ func DuringBusinessHour(bh *pb.BusinessHours, date time.Time, tz string) (bool, 
 	currentmin := h*60 + m
 
 	for _, wd := range bh.GetWorkingDays() {
-		if wd.GetWeekday() == weekday {
+		if wd.GetWeekday() == weekday || wd.GetWeekday() == "Everyday" {
 			start, err := toMinute(wd.GetStartTime())
 			if err != nil {
 				return false, err
