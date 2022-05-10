@@ -65,6 +65,8 @@ github.com/subiz/header v1.5.74 h1:NyKN44rNsc50momEz6/nvnkaVZtYLsnRMjUsqM2/254=
 github.com/subiz/header v1.5.74/go.mod h1:zhPf9x3KYSDBD+KuTSf7SpxByOXl4q24oucJXBwiMGw=
 github.com/subiz/header v1.7.22 h1:drjDUdBIoQZVF28G8kb56ZxElfDXTeiL2FpY/po6I9I=
 github.com/subiz/header v1.7.22/go.mod h1:20MLdHISLHw931bedBbqZRRliIzlwOWav4acuhlaIIE=
+github.com/subiz/header v1.8.10 h1:FZ9eDhw3NIijW72+okKuKQa56IxMgIcEEZ2B9bNqMPM=
+github.com/subiz/header v1.8.10/go.mod h1:fKJRR0JXv3tMw640yPTqaziCZLtqDU/ou1hLdmNx6XI=
 go.opentelemetry.io/proto/otlp v0.7.0/go.mod h1:PqfVotwruBrMGOCsRd/89rSnXhoiJIqeYNgFYFoEGnI=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
@@ -152,6 +154,8 @@ google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp0
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 google.golang.org/protobuf v1.27.1 h1:SnqbnDw1V7RiZcXPx5MEeqPv2s79L9i7BJUlG/+RurQ=
 google.golang.org/protobuf v1.27.1/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
+google.golang.org/protobuf v1.28.0 h1:w43yiav+6bVFTBQFZX0r7ipe9JQ1QsbMgHwbBziscLw=
+google.golang.org/protobuf v1.28.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v2 v2.2.3/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
