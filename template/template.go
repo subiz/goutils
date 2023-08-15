@@ -158,5 +158,5 @@ loopDomTest:
 			out += html.UnescapeString(string(txt))
 		}
 	}
-	return out
+	return strings.TrimSpace(out)
 }

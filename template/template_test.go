@@ -24,7 +24,18 @@ func TestCompileTemplate(t *testing.T) {
 }
 
 func TestToTextPlain(t *testing.T) {
-	body := `<p>xin chào bạn. Dưới đây là một số điểm bạn cần lưu ý</p><ul><li>Đi làm đúng giờ theo quy định ở <a href="https://subiz.com.vn">đây</a></li>
+	testCases := []struct {
+		in  string
+		out string
+	}{{
+		in:  "<p class=\"sbz_lexical_paragraph\" dir=\"ltr\"><span>XIn chao ban </span><span class=\"sbz-dynamic-field\" data-dynamic-field=\"user.fullname\">Tên khách</span><br><span class=\"lexical-emoji neutral\"><span class=\"lexical-emoji-inner\">😐</span></span></p>",
+		out: `XIn chao ban Tên khách
+😐`,
+	}, {
+		in:  "<p class=\"sbz_lexical_paragraph\" dir=\"ltr\"><span> Hiện tại hôm nay đang có chương trình ưu đãi đặc biệt dành cho que 4 Femplant chị nhé. Hôm nay đặt hẹn chị chỉ còn trả cho que cấy 4 năm Femplant là : 1.000.000 + 150.000 Phí khám tư vấn + tặng các dịch vụ khám sàng lọc ( chưa bao gồm thuốc sau cấy tùy vào cơ địa mỗi người bác sĩ sẽ kê đơn) . Chị có muốn đăng kí nhận ưu đãi này không ạ?</span></p>",
+		out: "Hiện tại hôm nay đang có chương trình ưu đãi đặc biệt dành cho que 4 Femplant chị nhé. Hôm nay đặt hẹn chị chỉ còn trả cho que cấy 4 năm Femplant là : 1.000.000 + 150.000 Phí khám tư vấn + tặng các dịch vụ khám sàng lọc ( chưa bao gồm thuốc sau cấy tùy vào cơ địa mỗi người bác sĩ sẽ kê đơn) . Chị có muốn đăng kí nhận ưu đãi này không ạ?",
+	}, {
+		in: `<p>xin chào bạn. Dưới đây là một số điểm bạn cần lưu ý</p><ul><li>Đi làm đúng giờ theo quy định ở <a href="https://subiz.com.vn">đây</a></li>
 <li>Không ăn quà vặt</li></ul><span>Và đây là dấu xuống&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>dòng:</b><br/>W&nbsp;ANT</span>
 <script>topci</script>
 One two three four five
@@ -35,10 +46,20 @@ One two three four five
 /* <![CDATA[ */
 var post_notif_widget_ajax_obj = {"ajax_url":"http:\/\/site.com\/wp-admin\/admin-ajax.php","nonce":"9b8270e2ef","processing_msg":"Processing..."};
 /* ]]> */
-</script>`
+</script>`,
+		out: `xin chào bạn. Dưới đây là một số điểm bạn cần lưu ýĐi làm đúng giờ theo quy định ở đây
+Không ăn quà vặtVà đây là dấu xuống     dòng:
+W ANT
 
-	out := CompileTemplateToPlainText(body)
-	fmt.Println("OUT", out)
+One two three four five
+huh`,
+	}}
+	for _, tc := range testCases {
+		actual := CompileTemplateToPlainText(tc.in)
+		if actual != tc.out {
+			t.Error("SHOULD BE EQ", actual)
+		}
+	}
 }
 
 func TestCompileTemplateToEmail(t *testing.T) {
@@ -55,5 +76,11 @@ func TestCompileTemplateToEmail(t *testing.T) {
 <p><br></p>`
 
 	out := CompileTemplateToEmail(body, map[string]string{"user.fullname": "Thanh", "user.emails": "thanhpk@live.<script>com"})
+	fmt.Println("OUT", out)
+}
+
+func TestCompileText(t *testing.T) {
+	body := `<p dir=\"ltr\"><span>aaa</span></p>`
+	out := CompileTemplateToPlainText(body)
 	fmt.Println("OUT", out)
 }
