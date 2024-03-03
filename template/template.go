@@ -141,6 +141,9 @@ loopDomTest:
 			break loopDomTest // End of the document,  done
 		case tt == html.StartTagToken:
 			previousStartTokenTest = domDocTest.Token()
+			if previousStartTokenTest.Data == "p" {
+				out += "\n"
+			}
 			if previousStartTokenTest.Data == "br" {
 				out += "\n"
 			}

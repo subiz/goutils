@@ -1,6 +1,7 @@
 package template
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -28,7 +29,7 @@ func TestToTextPlain(t *testing.T) {
 		in  string
 		out string
 	}{{
-		in:  "<p class=\"sbz_lexical_paragraph\" dir=\"ltr\"><span>XIn chao ban </span><span class=\"sbz-dynamic-field\" data-dynamic-field=\"user.fullname\">Tên khách</span><br><span class=\"lexical-emoji neutral\"><span class=\"lexical-emoji-inner\">😐</span></span></p>",
+		in: "<p class=\"sbz_lexical_paragraph\" dir=\"ltr\"><span>XIn chao ban </span><span class=\"sbz-dynamic-field\" data-dynamic-field=\"user.fullname\">Tên khách</span><br><span class=\"lexical-emoji neutral\"><span class=\"lexical-emoji-inner\">😐</span></span></p>",
 		out: `XIn chao ban Tên khách
 😐`,
 	}, {
@@ -53,11 +54,19 @@ W ANT
 
 One two three four five
 huh`,
+	}, {
+		in: "\u003cp class=\"sbz_lexical_paragraph\" dir=\"ltr\"\u003e\u003cspan style=\"white-space: pre-wrap;\"\u003eSGO DMC mến chào anh/chị \u003c/span\u003e\u003cspan class=\"sbz-dynamic-field\" data-dynamic-field=\"user.name\" style=\"white-space: pre-wrap;\"\u003eTên khách\u003c/span\u003e\u003c/p\u003e\u003cp class=\"sbz_lexical_paragraph\" dir=\"ltr\"\u003e\u003cspan style=\"white-space: pre-wrap;\"\u003eTour trải nghiệm đặc biệt tham gia giải chạy Marathon Gyeongju hoa anh đào được tài trợ BIB chạy bởi Tổng cục du lịch Hàn Quốc khởi hành duy nhất ngày 5/4.\u003c/span\u003e\u003c/p\u003e\u003cp class=\"sbz_lexical_paragraph\" dir=\"ltr\"\u003e\u003cbr\u003e\u003cspan style=\"white-space: pre-wrap;\"\u003eAnh/chị dự định đăng ký tham gia mấy thành viên ạ? Em xin thông tin để có thể hỗ trợ mình chi tiết ạ.\u003c/span\u003e\u003c/p\u003e",
+		out: `SGO DMC mến chào anh/chị Tên khách
+Tour trải nghiệm đặc biệt tham gia giải chạy Marathon Gyeongju hoa anh đào được tài trợ BIB chạy bởi Tổng cục du lịch Hàn Quốc khởi hành duy nhất ngày 5/4.
+
+Anh/chị dự định đăng ký tham gia mấy thành viên ạ? Em xin thông tin để có thể hỗ trợ mình chi tiết ạ.`,
 	}}
 	for _, tc := range testCases {
 		actual := CompileTemplateToPlainText(tc.in)
 		if actual != tc.out {
-			t.Error("SHOULD BE EQ", actual)
+			jsonactual, _ := json.Marshal(actual)
+			jsonout, _ := json.Marshal(tc.out)
+			t.Error("SHOULD BE EQ", string(jsonactual), "|GOT|", string(jsonout))
 		}
 	}
 }
