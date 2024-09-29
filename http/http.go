@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"net/http"
+	nethttp "net/http"
 	"sync"
 	"time"
 
@@ -13,11 +13,11 @@ import (
 
 var clientPool = sync.Pool{
 	New: func() any {
-		var t = http.DefaultTransport.(*http.Transport).Clone()
+		var t = nethttp.DefaultTransport.(*nethttp.Transport).Clone()
 		t.MaxIdleConns = 200
 		t.MaxConnsPerHost = 200
 		t.MaxIdleConnsPerHost = 200
-		return &http.Client{
+		return &nethttp.Client{
 			Timeout:   120 * time.Second,
 			Transport: t,
 		}
@@ -38,11 +38,11 @@ type Config struct {
 // Client is used to make http request. Its just default http client wrapper
 // which provide simpler syntax and exponential backoff retries.
 type Client struct {
-	HttpClient *http.Client
+	HttpClient *nethttp.Client
 }
 
 func NewClient() *Client {
-	return &Client{HttpClient: &http.Client{Timeout: 60 * time.Second}}
+	return &Client{HttpClient: &nethttp.Client{Timeout: 60 * time.Second}}
 }
 
 // Request sends http request to url, it retries automatically on
@@ -52,7 +52,7 @@ func NewClient() *Client {
 // timeout.
 // If success, this method returns raw response body, an ErrNot200 is returned
 // if the server don't return 2xx code.
-func (me *Client) Request(method, url string, body []byte, config *Config) ([]byte, int) {
+func (me *Client) Request(method, url string, body []byte, config *Config) ([]byte, int, nethttp.Header) {
 	var header map[string]string
 	timeout := 5 * time.Minute
 	if config != nil {
@@ -63,6 +63,7 @@ func (me *Client) Request(method, url string, body []byte, config *Config) ([]by
 	}
 	var out []byte     // raw response body
 	var statuscode int // returned status code, -1 indicates internal error
+	var respheader nethttp.Header
 
 	// create backoff utility to do retry
 	bo := backoff.NewExponentialBackOff()
@@ -71,7 +72,7 @@ func (me *Client) Request(method, url string, body []byte, config *Config) ([]by
 	bo.Reset()
 
 	err := backoff.Retry(func() error {
-		out, statuscode = sendHTTP(me.HttpClient, method, url, header, body)
+		out, statuscode, respheader = sendHTTP(me.HttpClient, method, url, header, body)
 		// retry on 429 or 5xx
 		if statuscode == 429 || Is5xx(statuscode) {
 			return errors.New("retry")
@@ -81,45 +82,46 @@ func (me *Client) Request(method, url string, body []byte, config *Config) ([]by
 		return nil
 	}, bo)
 	if err != nil {
-		return out, -2
+		return out, -2, respheader
 	}
 
-	return out, statuscode
+	return out, statuscode, respheader
 }
 
 // sendHTTP make an http request to http endpoint
 // method, url must not be empty
 // this method returns (response body in []byte, status code, and an error)
-func sendHTTP(client *http.Client, method, url string, header map[string]string, body []byte) ([]byte, int) {
-	var req *http.Request
+func sendHTTP(client *nethttp.Client, method, url string, header map[string]string, body []byte) ([]byte, int, nethttp.Header) {
+	var req *nethttp.Request
 	var err error
 	if body == nil {
-		req, err = http.NewRequest(method, url, nil)
+		req, err = nethttp.NewRequest(method, url, nil)
 	} else {
-		req, err = http.NewRequest(method, url, bytes.NewReader(body))
+		req, err = nethttp.NewRequest(method, url, bytes.NewReader(body))
 	}
 	if err != nil {
-		return []byte(err.Error()), -1
+		return []byte(err.Error()), -1, nil
 	}
 
 	for k, v := range header {
 		req.Header.Set(k, v)
 	}
 
-	req.Header.Set("User-Agent", "Subiz-Gun/4.015")
+	req.Header.Set("User-Agent", "Subiz-Gun/4.016")
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
 
 	res, err := client.Do(req)
 	if err != nil {
-		return []byte(err.Error()), 0
+		return []byte(err.Error()), 0, nil
 	}
+
 	defer res.Body.Close()
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return []byte(err.Error()), -5
+		return []byte(err.Error()), -5, nil
 	}
-	return b, res.StatusCode
+	return b, res.StatusCode, res.Header
 }
 
 // Is2xx return whether code is in range of (200; 299)
@@ -138,7 +140,7 @@ func Is5xx(code int) bool { return 499 < code && code < 600 }
 // timeout.
 // If success, this method returns raw response body, an ErrNot200 is returned if
 // the server don't return 2xx code.
-func Request(method, url string, body []byte, config *Config) ([]byte, int) {
+func Request(method, url string, body []byte, config *Config) ([]byte, int, nethttp.Header) {
 	client := clientPool.Get().(*Client)
 	defer func() {
 		clientPool.Put(client)
@@ -146,42 +148,42 @@ func Request(method, url string, body []byte, config *Config) ([]byte, int) {
 	return client.Request(method, url, body, config)
 }
 
-func Get(url string, header map[string]string) ([]byte, int) {
+func Get(url string, header map[string]string) ([]byte, int, nethttp.Header) {
 	return Request("GET", url, nil, &Config{
 		Header:  header,
 		Timeout: 1 * time.Minute,
 	})
 }
 
-func Head(url string, header map[string]string) ([]byte, int) {
+func Head(url string, header map[string]string) ([]byte, int, nethttp.Header) {
 	return Request("HEAD", url, nil, &Config{
 		Header:  header,
 		Timeout: 1 * time.Minute,
 	})
 }
 
-func Post(url string, body []byte, header map[string]string) ([]byte, int) {
+func Post(url string, body []byte, header map[string]string) ([]byte, int, nethttp.Header) {
 	return Request("POST", url, body, &Config{
 		Header:  header,
 		Timeout: 1 * time.Minute,
 	})
 }
 
-func Patch(url string, body []byte, header map[string]string) ([]byte, int) {
+func Patch(url string, body []byte, header map[string]string) ([]byte, int, nethttp.Header) {
 	return Request("PATCH", url, body, &Config{
 		Header:  header,
 		Timeout: 1 * time.Minute,
 	})
 }
 
-func Put(url string, body []byte, header map[string]string) ([]byte, int) {
+func Put(url string, body []byte, header map[string]string) ([]byte, int, nethttp.Header) {
 	return Request("PUT", url, body, &Config{
 		Header:  header,
 		Timeout: 1 * time.Minute,
 	})
 }
 
-func Delete(url string, body []byte, header map[string]string) ([]byte, int) {
+func Delete(url string, body []byte, header map[string]string) ([]byte, int, nethttp.Header) {
 	return Request("DELETE", url, body, &Config{
 		Header:  header,
 		Timeout: 1 * time.Minute,
