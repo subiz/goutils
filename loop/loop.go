@@ -7,10 +7,14 @@ import (
 
 func Loop(f func()) {
 	for {
-		err := func() (e *Error) {
+		err := func() (e error) {
 			defer func() {
 				if r := recover(); r != nil {
-					e = &Error{Description: fmt.Sprintf("%v", r), Stack: getMinifiedStack()}
+					if er, _ := r.(error); er != nil {
+						e = er
+						return
+					}
+					e = fmt.Errorf("%v", r)
 					return
 				}
 			}()
@@ -21,20 +25,28 @@ func Loop(f func()) {
 		if err == nil {
 			break
 		}
-		fmt.Println(err.Description)
-		fmt.Println(err.Stack)
 		fmt.Println("will retries in 3 sec")
 		time.Sleep(3 * time.Second)
 	}
 }
 
 func LoopErr(f func() error, maxtime int) error {
+	if maxtime <= 0 {
+		maxtime = 1000_000_000
+	}
 	i := 0
-	return Loop(func() {
+	var lasterr error
+	Loop(func() {
 		i++
-		if i > maxTime
+		if i > maxtime {
+			return
+		}
+
 		if err := f(); err != nil {
+			lasterr = err
 			panic(err)
 		}
+		lasterr = nil
 	})
+	return lasterr
 }
