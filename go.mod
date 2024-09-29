@@ -1,5 +1,5 @@
 module github.com/subiz/goutils
 
-go 1.20
+go 1.23
 
-require golang.org/x/net v0.10.0
+require github.com/cenkalti/backoff v2.2.1+incompatible // indirect

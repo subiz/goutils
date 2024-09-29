@@ -3,17 +3,26 @@ package http
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
 )
 
-var (
-	ErrUrlIsEmpty = errors.New("url is empty")
-	ErrNot200     = errors.New("not 200")
-)
+var clientPool = sync.Pool{
+	New: func() any {
+		var t = http.DefaultTransport.(*http.Transport).Clone()
+		t.MaxIdleConns = 200
+		t.MaxConnsPerHost = 200
+		t.MaxIdleConnsPerHost = 200
+		return &http.Client{
+			Timeout:   120 * time.Second,
+			Transport: t,
+		}
+	},
+}
 
 // Config used to specific detailed configurations when making http request
 type Config struct {
@@ -25,9 +34,6 @@ type Config struct {
 	// each call to server only wait for 60 secs
 	Timeout time.Duration
 }
-
-// g_fhc used to send http request
-var g_fhc = NewClient()
 
 // Client is used to make http request. Its just default http client wrapper
 // which provide simpler syntax and exponential backoff retries.
@@ -46,11 +52,7 @@ func NewClient() *Client {
 // timeout.
 // If success, this method returns raw response body, an ErrNot200 is returned
 // if the server don't return 2xx code.
-func (me *Client) Request(method, url string, body []byte, config *Config) ([]byte, error) {
-	if url == "" {
-		return nil, ErrUrlIsEmpty
-	}
-
+func (me *Client) Request(method, url string, body []byte, config *Config) ([]byte, int) {
 	var header map[string]string
 	timeout := 5 * time.Minute
 	if config != nil {
@@ -69,36 +71,26 @@ func (me *Client) Request(method, url string, body []byte, config *Config) ([]by
 	bo.Reset()
 
 	err := backoff.Retry(func() error {
-		var err error
-		out, statuscode, err = sendHTTP(me.HttpClient, method, url, header, body)
-		if err != nil {
-			// something wrong with the parameters, return nil since retry won't help
-			out = []byte(err.Error())
-			return nil
-		}
+		out, statuscode = sendHTTP(me.HttpClient, method, url, header, body)
 		// retry on 429 or 5xx
 		if statuscode == 429 || Is5xx(statuscode) {
-			return errors.New(string(out))
+			return errors.New("retry")
 		}
 
 		// we don't retry on other status code (400, 300)
 		return nil
 	}, bo)
 	if err != nil {
-		return out, err
+		return out, -2
 	}
 
-	if !Is2xx(statuscode) {
-		return out, ErrNot200
-	}
-
-	return out, nil
+	return out, statuscode
 }
 
 // sendHTTP make an http request to http endpoint
 // method, url must not be empty
 // this method returns (response body in []byte, status code, and an error)
-func sendHTTP(client *http.Client, method, url string, header map[string]string, body []byte) ([]byte, int, error) {
+func sendHTTP(client *http.Client, method, url string, header map[string]string, body []byte) ([]byte, int) {
 	var req *http.Request
 	var err error
 	if body == nil {
@@ -107,7 +99,7 @@ func sendHTTP(client *http.Client, method, url string, header map[string]string,
 		req, err = http.NewRequest(method, url, bytes.NewReader(body))
 	}
 	if err != nil {
-		return nil, 0, err
+		return []byte(err.Error()), -1
 	}
 
 	for k, v := range header {
@@ -120,14 +112,14 @@ func sendHTTP(client *http.Client, method, url string, header map[string]string,
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, 0, err
+		return []byte(err.Error()), 0
 	}
 	defer res.Body.Close()
-	b, err := ioutil.ReadAll(res.Body)
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, 0, err
+		return []byte(err.Error()), -5
 	}
-	return b, res.StatusCode, nil
+	return b, res.StatusCode
 }
 
 // Is2xx return whether code is in range of (200; 299)
@@ -146,6 +138,52 @@ func Is5xx(code int) bool { return 499 < code && code < 600 }
 // timeout.
 // If success, this method returns raw response body, an ErrNot200 is returned if
 // the server don't return 2xx code.
-func Request(method, url string, body []byte, config *Config) ([]byte, error) {
-	return g_fhc.Request(method, url, body, config)
+func Request(method, url string, body []byte, config *Config) ([]byte, int) {
+	client := clientPool.Get().(*Client)
+	defer func() {
+		clientPool.Put(client)
+	}()
+	return client.Request(method, url, body, config)
+}
+
+func Get(url string, header map[string]string) ([]byte, int) {
+	return Request("GET", url, nil, &Config{
+		Header:  header,
+		Timeout: 1 * time.Minute,
+	})
+}
+
+func Head(url string, header map[string]string) ([]byte, int) {
+	return Request("HEAD", url, nil, &Config{
+		Header:  header,
+		Timeout: 1 * time.Minute,
+	})
+}
+
+func Post(url string, body []byte, header map[string]string) ([]byte, int) {
+	return Request("POST", url, body, &Config{
+		Header:  header,
+		Timeout: 1 * time.Minute,
+	})
+}
+
+func Patch(url string, body []byte, header map[string]string) ([]byte, int) {
+	return Request("PATCH", url, body, &Config{
+		Header:  header,
+		Timeout: 1 * time.Minute,
+	})
+}
+
+func Put(url string, body []byte, header map[string]string) ([]byte, int) {
+	return Request("PUT", url, body, &Config{
+		Header:  header,
+		Timeout: 1 * time.Minute,
+	})
+}
+
+func Delete(url string, body []byte, header map[string]string) ([]byte, int) {
+	return Request("DELETE", url, body, &Config{
+		Header:  header,
+		Timeout: 1 * time.Minute,
+	})
 }
