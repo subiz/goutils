@@ -17,9 +17,11 @@ var clientPool = sync.Pool{
 		t.MaxIdleConns = 200
 		t.MaxConnsPerHost = 200
 		t.MaxIdleConnsPerHost = 200
-		return &nethttp.Client{
-			Timeout:   120 * time.Second,
-			Transport: t,
+		return &Client{
+			HttpClient: &nethttp.Client{
+				Timeout:   120 * time.Second,
+				Transport: t,
+			},
 		}
 	},
 }
@@ -35,7 +37,6 @@ type Config struct {
 	Timeout time.Duration
 }
 
-// Client is used to make http request. Its just default http client wrapper
 // which provide simpler syntax and exponential backoff retries.
 type Client struct {
 	HttpClient *nethttp.Client
