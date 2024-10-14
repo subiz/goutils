@@ -30,6 +30,31 @@ func TestTimezoneOffset(t *testing.T) {
 	}
 }
 
+func TestSubDay(t *testing.T) {
+	tcs := []struct {
+		a   string
+		b   string
+		tz  string
+		day int
+	}{
+		{"2019-10-12T16:20:50.52Z", "2019-10-12T18:21:50.52Z", "00:00", 0},
+		{"2019-10-12T16:20:50Z", "2019-10-12T18:20:50Z", "+07:00", 1},
+		{"2019-10-12T18:20:50Z", "2019-10-12T16:20:50Z", "+07:00", -1},
+	}
+
+	for i, tc := range tcs {
+		aunix, err := time.Parse(time.RFC3339, tc.a)
+		if err != nil {
+			panic(err)
+		}
+		bunix, _ := time.Parse(time.RFC3339, tc.b)
+		day := SubDays(aunix.UnixMilli(), bunix.UnixMilli(), tc.tz)
+		if tc.day != day {
+			t.Errorf("%d: should be %d got %d", i, tc.day, day)
+		}
+	}
+}
+
 func TestConvertTimezone(t *testing.T) {
 	tcs := []struct {
 		intime string

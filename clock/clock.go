@@ -212,4 +212,16 @@ func GetTimezoneOffset(tz string) int {
 	return -(h*60 + m)
 }
 
+func SubDays(a, b int64, tz string) int {
+	offmin := int64(GetTimezoneOffset(tz))
+	atime := time.Unix(a/1000-offmin*60, 0)
+	btime := time.Unix(b/1000-offmin*60, 0)
+	ahour, amin, _ := atime.UTC().Clock()
+	bhour, bmin, _ := btime.UTC().Clock()
+	tza := int(atime.Unix()) - ahour*3600 - amin*60
+	tzb := int(btime.Unix()) - bhour*3600 - bmin*60
+
+	return (tzb - tza) / 86400
+}
+
 func isNumeric(r byte) bool { return '0' <= r && r <= '9' }
