@@ -88,9 +88,13 @@ var tzMap = &sync.Map{}
 
 // TimezoneToUTC convert timezone name to UTC timezone
 // The name should be taken in the IANA Time Zone database, for examples:
-//   "America/New_York", "Asia/Ho_Chi_Minh"
+//
+//	"America/New_York", "Asia/Ho_Chi_Minh"
+//
 // examples:
-//   TimezoneToUTC("Asia/Ho_Chi_Minh") -> +07:00
+//
+//	TimezoneToUTC("Asia/Ho_Chi_Minh") -> +07:00
+//
 // This function use tzMap global variable as cache
 // CAUTION: in order to run, OS must have tzdata package (use 'apk add tzdata'
 // to install)
@@ -154,9 +158,10 @@ func ConvertTimezone(t time.Time, tz string) (year, mon, day, hour, min int, wee
 // timezone offset must follow +hh:mm or -hh:mm, otherwise the function
 // will return an invalid timezone offset error
 // examples:
-//  SplitTzOffset("+07:00") => 7, 0
-//  SplitTzOffset("-07:30") => -7, -30
-//  SplitTzOffset("-00:30") => -7, -30
+//
+//	SplitTzOffset("+07:00") => 7, 0
+//	SplitTzOffset("-07:30") => -7, -30
+//	SplitTzOffset("-00:30") => -7, -30
 func SplitTzOffset(offset string) (int, int, error) {
 	offset = strings.TrimSpace(offset)
 	if offset == "" || offset == "0" || offset == "00:00" || offset == "Z" {
@@ -198,6 +203,13 @@ func SplitTzOffset(offset string) (int, int, error) {
 		return -int(hour), -int(min), nil
 	}
 	return int(hour), int(min), nil
+}
+
+// GetTimezoneOffset returns the difference, in minutes, between this date as evaluated in the UTC time zone.
+// eg: +07:00 -> -420
+func GetTimezoneOffset(tz string) int {
+	h, m, _ := SplitTzOffset(tz)
+	return -(h*60 + m)
 }
 
 func isNumeric(r byte) bool { return '0' <= r && r <= '9' }

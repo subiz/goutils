@@ -10,6 +10,26 @@ func TestHourOfDay(t *testing.T) {
 	println(RoundSecNano(time.Now().UnixNano()))
 }
 
+func TestTimezoneOffset(t *testing.T) {
+	tcs := []struct {
+		tz  string
+		min int
+	}{
+		{"", 0},
+		{"+00:00", 0},
+		{"+07:00", -420},
+		{"+07:30", -450},
+		{"-00:30", 30},
+	}
+
+	for _, tc := range tcs {
+		min := GetTimezoneOffset(tc.tz)
+		if tc.min != min {
+			t.Errorf("%s: should be %d got %d", tc.tz, tc.min, min)
+		}
+	}
+}
+
 func TestConvertTimezone(t *testing.T) {
 	tcs := []struct {
 		intime string

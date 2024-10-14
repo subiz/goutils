@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// deprecated
 func CompileTemplateDynamicField(body string, data map[string]string) string {
 	doc, err := html.Parse(strings.NewReader(body))
 	if err != nil {
