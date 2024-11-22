@@ -2,10 +2,12 @@ package business_hours
 
 import (
 	"fmt"
-	pb "github.com/subiz/header/account"
+	"math"
 	"strconv"
 	"strings"
 	"time"
+
+	pb "github.com/subiz/header/account"
 )
 
 func DuringBusinessHour(bh *pb.BusinessHours, date time.Time, tz string) (bool, error) {
@@ -61,6 +63,161 @@ func IsHoliday(bh *pb.BusinessHours, date time.Time, tz string) (bool, error) {
 	return false, nil
 }
 
+// lack of testcases
+func GetNextBusinessMili(bh *pb.BusinessHours, date time.Time, tz string) (int64, error) {
+	currentMin := date.Unix() / 60
+	isInBussinessHour, err := DuringBusinessHour(bh, date, tz)
+	if err != nil {
+		return 0, nil
+	}
+	if isInBussinessHour {
+		return date.UnixMilli(), nil
+	}
+
+	year, month, day, h, m, weekday, err := ConvertTimezone(date, tz)
+	if err != nil {
+		return 0, err
+	}
+	startMinCurrentDay := currentMin - int64(h)*60 - int64(m)
+	bussesPeriodMins := [][]int64{}
+	for _, wd := range bh.GetWorkingDays() {
+		// get day diff not match holiday
+		daydiffs := []int64{}
+		if wd.GetWeekday() == "Everyday" {
+			daydiffs = append(daydiffs, 0)
+			daydiffs = append(daydiffs, 1)
+			daydiffs = append(daydiffs, 2)
+			daydiffs = append(daydiffs, 3)
+			daydiffs = append(daydiffs, 4)
+			daydiffs = append(daydiffs, 5)
+			daydiffs = append(daydiffs, 6)
+		} else {
+			daydiffs = append(daydiffs, getDiffWeekDay(weekday, wd.GetWeekday()))
+		}
+
+		for _, daydiff := range daydiffs {
+			for i := 0; i <= 10; i++ {
+				tempDay := time.Date(year, time.Month(month), day+int(daydiff), 0, 0, 0, 0, time.UTC)
+				isHoliday, err := IsHoliday(bh, tempDay, tz)
+				if err != nil {
+					return 0, err
+				}
+				if !isHoliday {
+					break
+				}
+				daydiff += 7
+			}
+			startMinofDay, err := toMinute(wd.GetStartTime())
+			if err != nil {
+				return 0, err
+			}
+			endMinOfDay, err := toMinute(wd.GetEndTime())
+			if err != nil {
+				return 0, err
+			}
+
+			startBussinessMin := int64(startMinofDay) + daydiff*24*60 + startMinCurrentDay
+			endMin := int64(endMinOfDay) + daydiff*24*60 + startMinCurrentDay
+			bussesPeriodMins = append(bussesPeriodMins, []int64{startBussinessMin, endMin})
+		}
+
+	}
+	var nextBussinessMin int64 = math.MaxInt64
+	for _, period := range bussesPeriodMins {
+		start := period[0]
+		if start >= currentMin && start <= nextBussinessMin {
+			nextBussinessMin = start
+		}
+
+	}
+	nextBussinessMili := nextBussinessMin * 60 * 1000
+	return nextBussinessMili, nil
+}
+
+// lack of testcases
+func GetNextNonBusinessMili(bh *pb.BusinessHours, date time.Time, tz string) (int64, error) {
+	currentMin := date.Unix() / 60
+	isInBussinessHour, err := DuringBusinessHour(bh, date, tz)
+	if err != nil {
+		return 0, nil
+	}
+	if !isInBussinessHour {
+		return date.UnixMilli(), nil
+	}
+
+	year, month, day, h, m, weekday, err := ConvertTimezone(date, tz)
+	if err != nil {
+		return 0, err
+	}
+	startMinCurrentDay := currentMin - int64(h)*60 - int64(m)
+	bussesPeriodMins := [][]int64{}
+	var maxEndMin int64 = 0
+	for _, wd := range bh.GetWorkingDays() {
+		// get day diff not match holiday
+		daydiffs := []int64{}
+		if wd.GetWeekday() == "Everyday" {
+			daydiffs = append(daydiffs, 0)
+			daydiffs = append(daydiffs, 1)
+			daydiffs = append(daydiffs, 2)
+			daydiffs = append(daydiffs, 3)
+			daydiffs = append(daydiffs, 4)
+			daydiffs = append(daydiffs, 5)
+			daydiffs = append(daydiffs, 6)
+		} else {
+			daydiffs = append(daydiffs, getDiffWeekDay(weekday, wd.GetWeekday()))
+		}
+
+		for _, daydiff := range daydiffs {
+
+			startMinofDay, err := toMinute(wd.GetStartTime())
+			if err != nil {
+				return 0, err
+			}
+			endMinOfDay, err := toMinute(wd.GetEndTime())
+			if err != nil {
+				return 0, err
+			}
+			tempDay := time.Date(year, time.Month(month), day+int(daydiff), 0, 0, 0, 0, time.UTC)
+			isHoliday, err := IsHoliday(bh, tempDay, tz)
+			if err != nil {
+				return 0, err
+			}
+			if isHoliday {
+				startMinofDay = 0
+				endMinOfDay = 23*60 + 59
+			}
+			startBussinessMin := int64(startMinofDay) + daydiff*24*60 + startMinCurrentDay
+			endBussinessMin := int64(endMinOfDay) + daydiff*24*60 + startMinCurrentDay
+			endMin := 23*60 + 59 + daydiff*24*60 + startMinCurrentDay
+			if maxEndMin < endMin {
+				maxEndMin = endMin
+			}
+			bussesPeriodMins = append(bussesPeriodMins, []int64{startBussinessMin, endBussinessMin})
+		}
+
+	}
+	var nextNonBussinessMili int64 = math.MaxInt64
+	for min := currentMin; min <= maxEndMin; min++ {
+		isNonBussiness := true
+		for _, period := range bussesPeriodMins {
+			start := period[0]
+			end := period[1]
+
+			if min >= start && min <= end {
+				isNonBussiness = false
+				// this period is alway false
+				min = end
+				break
+			}
+		}
+		if isNonBussiness {
+			nextNonBussinessMili = min * 60 * 1000
+			break
+		}
+	}
+	return nextNonBussinessMili, nil
+}
+
 // toMinute from string 10:25 convert to number of minutes: 675
 func toMinute(t string) (int, error) {
 	var mins, hours int
@@ -111,9 +268,10 @@ func ConvertTimezone(t time.Time, tz string) (year, mon, day, hour, min int, wee
 // timezone offset must follow +hh:mm or -hh:mm, otherwise the function
 // will return an invalid timezone offset error
 // examples:
-//  SplitTzOffset("+07:00") => 7, 0
-//  SplitTzOffset("-07:30") => -7, -30
-//  SplitTzOffset("-00:30") => -7, -30
+//
+//	SplitTzOffset("+07:00") => 7, 0
+//	SplitTzOffset("-07:30") => -7, -30
+//	SplitTzOffset("-00:30") => -7, -30
 func SplitTzOffset(offset string) (int, int, error) {
 	offset = strings.TrimSpace(offset)
 	if offset == "" || offset == "0" || offset == "00:00" || offset == "Z" {
@@ -158,3 +316,26 @@ func SplitTzOffset(offset string) (int, int, error) {
 }
 
 func isNumeric(r byte) bool { return '0' <= r && r <= '9' }
+
+func getDiffWeekDay(weekDayLhs, weekDayRhs string) int64 {
+	diffDay := weekDayM[weekDayLhs] - weekDayM[weekDayRhs]
+	if diffDay < 0 {
+		return -diffDay
+	}
+	return diffDay
+
+}
+
+var weekDayM map[string]int64
+
+func init() {
+	weekDayM = map[string]int64{
+		"Monday":    1,
+		"Tuesday":   2,
+		"Wednesday": 3,
+		"Thursday":  4,
+		"Friday":    5,
+		"Saturday":  6,
+		"Sunday":    7,
+	}
+}
