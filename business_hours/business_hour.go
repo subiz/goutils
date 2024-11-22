@@ -82,6 +82,7 @@ func GetNextBusinessMili(bh *pb.BusinessHours, date time.Time, tz string) (int64
 	bussesPeriodMins := [][]int64{}
 	for _, wd := range bh.GetWorkingDays() {
 		// get day diff not match holiday
+
 		daydiffs := []int64{}
 		if wd.GetWeekday() == "Everyday" {
 			daydiffs = append(daydiffs, 0)
@@ -91,11 +92,17 @@ func GetNextBusinessMili(bh *pb.BusinessHours, date time.Time, tz string) (int64
 			daydiffs = append(daydiffs, 4)
 			daydiffs = append(daydiffs, 5)
 			daydiffs = append(daydiffs, 6)
+			// append first day of next week it to handle edge case: same day check
+			daydiffs = append(daydiffs, 7)
 		} else {
-			daydiffs = append(daydiffs, getDiffWeekDay(weekday, wd.GetWeekday()))
+			dayDiff := getDiffWeekDay(weekday, wd.GetWeekday())
+			daydiffs = append(daydiffs, dayDiff)
+			// append next week it self to handle edge case: only 1 weekday
+			daydiffs = append(daydiffs, dayDiff+7)
 		}
 
 		for _, daydiff := range daydiffs {
+			// make sure next day is not match holiday
 			for i := 0; i <= 10; i++ {
 				tempDay := time.Date(year, time.Month(month), day+int(daydiff), 0, 0, 0, 0, time.UTC)
 				isHoliday, err := IsHoliday(bh, tempDay, tz)
@@ -153,7 +160,6 @@ func GetNextNonBusinessMili(bh *pb.BusinessHours, date time.Time, tz string) (in
 	bussesPeriodMins := [][]int64{}
 	var maxEndMin int64 = 0
 	for _, wd := range bh.GetWorkingDays() {
-		// get day diff not match holiday
 		daydiffs := []int64{}
 		if wd.GetWeekday() == "Everyday" {
 			daydiffs = append(daydiffs, 0)
@@ -163,8 +169,13 @@ func GetNextNonBusinessMili(bh *pb.BusinessHours, date time.Time, tz string) (in
 			daydiffs = append(daydiffs, 4)
 			daydiffs = append(daydiffs, 5)
 			daydiffs = append(daydiffs, 6)
+			// append first day of next week it to handle edge case: same day check
+			daydiffs = append(daydiffs, 7)
 		} else {
-			daydiffs = append(daydiffs, getDiffWeekDay(weekday, wd.GetWeekday()))
+			dayDiff := getDiffWeekDay(weekday, wd.GetWeekday())
+			daydiffs = append(daydiffs, dayDiff)
+			// append next week it self to handle edge case: only 1 weekday
+			daydiffs = append(daydiffs, dayDiff+7)
 		}
 
 		for _, daydiff := range daydiffs {
